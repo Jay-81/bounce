@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BOUNCE — Neon Arcade Game</title>
-  <meta name="description" content="BOUNCE is a sleek neon arcade vertical bouncing-ball game built with HTML5 Canvas and Vanilla JavaScript.">
+  <title>BOUNCE v2 — Endless Climb Arcade</title>
+  <meta name="description" content="BOUNCE v2 is a sleek neon vertical endless-climbing arcade game built with HTML5 Canvas and Vanilla JavaScript.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
@@ -15,27 +15,60 @@
     <!-- Header with game title and badges -->
     <header class="game-header">
       <h1 class="brand-title">BOUNCE</h1>
-      <div class="version-badge">v1.0 Arcade</div>
+      <div class="version-badge">v2.0 Endless</div>
     </header>
 
     <!-- Main Game Container -->
     <div class="game-container" id="gameContainer">
       <!-- HUD (In-Game Top Bar) -->
       <div class="game-hud" id="gameHud">
-        <div class="hud-item">
-          <span class="hud-label">ALTITUDE</span>
-          <span class="hud-value" id="hudScore">0</span>
+        <!-- Level & Progress Group -->
+        <div class="hud-level-group">
+          <div class="hud-level-info">
+            <span class="hud-level-text" id="hudLevelText">LVL 1</span>
+          </div>
+          <div class="level-progress-track" title="Level Progress">
+            <div class="level-progress-bar" id="hudLevelProgress"></div>
+          </div>
         </div>
-        <div class="hud-item">
-          <span class="hud-label">BEST</span>
-          <span class="hud-value" id="hudBest">0</span>
+
+        <!-- Scores -->
+        <div class="hud-scores-group">
+          <div class="hud-item">
+            <span class="hud-label">ALT</span>
+            <span class="hud-value" id="hudScore">0</span>
+          </div>
+          <div class="hud-item">
+            <span class="hud-label">BEST</span>
+            <span class="hud-value" id="hudBest">0</span>
+          </div>
         </div>
-        <button class="icon-btn" id="pauseBtn" title="Pause Game (Esc)" aria-label="Pause Game">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-            <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
-            <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
-          </svg>
-        </button>
+
+        <!-- Action Controls (Sound & Pause) -->
+        <div class="hud-actions-group">
+          <button class="icon-btn" id="soundBtn" title="Toggle Sound (M)" aria-label="Toggle Sound">
+            <!-- Audio ON icon -->
+            <svg class="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
+            </svg>
+            <!-- Audio OFF icon -->
+            <svg class="sound-off-icon hidden" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27l4.73 4.73H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
+            </svg>
+          </button>
+          <button class="icon-btn" id="pauseBtn" title="Pause Game (Esc)" aria-label="Pause Game">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
+              <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Level Milestone Notification Banner -->
+      <div class="level-banner hidden" id="levelBanner">
+        <div class="level-banner-title" id="levelBannerTitle">LEVEL 2 REACHED!</div>
+        <div class="level-banner-sub">NEW MILESTONE UNLOCKED</div>
       </div>
 
       <!-- Canvas rendering surface -->
@@ -47,29 +80,35 @@
         <div class="screen-content">
           <div class="logo-glow-wrapper">
             <h2 class="neon-logo">BOUNCE</h2>
-            <div class="neon-subtitle">NEON VERTICAL ARCADE</div>
+            <div class="neon-subtitle">ENDLESS CLIMB v2</div>
           </div>
 
           <div class="instructions-card">
             <p class="instruction-text">
-              The orb automatically bounces when landing on moving platforms. Steer with A/D, use W/Up for 1 air jump per bounce, and avoid falling!
+              Climb endlessly through moving platforms. Bounce automatically, use W/Up for 1 air jump per bounce, and steer clear of red hazard spikes!
             </p>
             <div class="controls-hint">
+              <div class="key-pill"><span>A</span> / <span>D</span> Move</div>
               <div class="key-pill"><span>W</span> / <span>&uarr;</span> Air Jump (1x)</div>
-              <div class="key-pill"><span>A</span> / <span>&larr;</span> Left</div>
-              <div class="key-pill"><span>D</span> / <span>&rarr;</span> Right</div>
               <div class="key-pill"><span>S</span> / <span>&darr;</span> Dive</div>
+              <div class="key-pill"><span>M</span> Mute</div>
               <div class="key-pill"><span>ESC</span> Pause</div>
             </div>
           </div>
 
-          <div class="stats-preview">
-            <span class="stat-label">RECORD ALTITUDE</span>
-            <span class="stat-val" id="menuBestScore">0</span>
+          <div class="stats-preview-row">
+            <div class="stats-preview-item">
+              <span class="stat-label">RECORD ALTITUDE</span>
+              <span class="stat-val" id="menuBestScore">0</span>
+            </div>
+            <div class="stats-preview-item">
+              <span class="stat-label">HIGHEST LEVEL</span>
+              <span class="stat-val gold-accent" id="menuHighestLevel">1</span>
+            </div>
           </div>
 
           <button class="neon-btn primary-neon-btn" id="playBtn">
-            <span>PLAY GAME</span>
+            <span>START CLIMB</span>
             <div class="btn-glow"></div>
           </button>
         </div>
@@ -107,6 +146,10 @@
               <span class="score-row-value cyan-glow" id="finalScore">0</span>
             </div>
             <div class="score-row">
+              <span class="score-row-label">LEVEL REACHED</span>
+              <span class="score-row-value gold-glow" id="finalLevelReached">1</span>
+            </div>
+            <div class="score-row">
               <span class="score-row-label">BEST RECORD</span>
               <span class="score-row-value purple-glow" id="finalBestScore">0</span>
             </div>
@@ -114,7 +157,7 @@
           </div>
 
           <button class="neon-btn primary-neon-btn" id="restartBtn">
-            <span>PLAY AGAIN</span>
+            <span>CLIMB AGAIN</span>
             <div class="btn-glow"></div>
           </button>
         </div>
@@ -124,18 +167,18 @@
     <!-- On-screen 4-directional touch controls for mobile / touch devices -->
     <div class="touch-controls" id="touchControls">
       <div class="touch-dpad">
-        <button class="touch-btn dpad-up" id="touchUp" aria-label="Steer Up">&uarr;</button>
+        <button class="touch-btn dpad-up" id="touchUp" aria-label="Air Jump">&uarr;</button>
         <div class="dpad-horizontal">
           <button class="touch-btn dpad-left" id="touchLeft" aria-label="Steer Left">&larr;</button>
           <button class="touch-btn dpad-right" id="touchRight" aria-label="Steer Right">&rarr;</button>
         </div>
-        <button class="touch-btn dpad-down" id="touchDown" aria-label="Steer Down">&darr;</button>
+        <button class="touch-btn dpad-down" id="touchDown" aria-label="Dive Down">&darr;</button>
       </div>
     </div>
 
     <!-- Footer with instructions -->
     <footer class="game-footer">
-      <p>Controls: <kbd>A</kbd><kbd>D</kbd> or <kbd>&larr;</kbd><kbd>&rarr;</kbd> Move | <kbd>W</kbd> or <kbd>&uarr;</kbd> Air Jump (1x) | <kbd>S</kbd> or <kbd>&darr;</kbd> Dive | <kbd>Enter</kbd> Start/Restart | <kbd>Esc</kbd> Pause</p>
+      <p>Controls: <kbd>A</kbd><kbd>D</kbd> or <kbd>&larr;</kbd><kbd>&rarr;</kbd> Move | <kbd>W</kbd> or <kbd>&uarr;</kbd> Air Jump (1x) | <kbd>S</kbd> or <kbd>&darr;</kbd> Dive | <kbd>M</kbd> Mute | <kbd>Esc</kbd> Pause</p>
     </footer>
   </div>
 

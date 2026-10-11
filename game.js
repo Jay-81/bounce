@@ -1,12 +1,16 @@
 /**
  * ============================================================================
- * BOUNCE — Neon Arcade Game (Version 1.2 - Precision Movement & Moving Platforms)
+ * BOUNCE v2 — Endless Climb Arcade
  * Features:
- * - Edge-triggered single air jump (1 per bounce) preventing infinite flight
- * - 2-way vertical collision detection (landing bounce top, underside ceiling thud)
- * - Deterministic horizontally moving platforms (Start Base, Tier 1, Tier 2)
- * - Sub-stepped physics simulation eliminating tunneling
- * - Responsive left/right steering and downward dive
+ * - Truly endless procedural vertical climb with dynamic follow camera
+ * - Separation of World Coordinates and Screen Coordinates
+ * - Bounded, playable procedural platform generation and recycling
+ * - Neon hazard spike obstacles appearing progressively from Level 2+
+ * - Compact Level Progression HUD with milestone progress bar & animated banner
+ * - Synthesized Web Audio arcade sound effects (bounce, level, hazard, game over)
+ * - Mute sound toggle with localStorage persistence
+ * - Edge-triggered single air jump & 2-way vertical collision handling
+ * - Moving platforms with deterministic patrol bounds
  * ============================================================================
  */
 
@@ -16,9 +20,11 @@
   // --- Constants & Config ---
   const CANVAS_WIDTH = 480;
   const CANVAS_HEIGHT = 700;
-  const STORAGE_KEY = 'bounce_arcade_best_score';
+  const STORAGE_KEY_BEST = 'bounce_arcade_best_score';
+  const STORAGE_KEY_LEVEL = 'bounce_arcade_highest_level';
+  const STORAGE_KEY_SOUND = 'bounce_arcade_sound_enabled';
 
-  // Physics Parameters
+  // Physics Parameters (World space)
   const GRAVITY = 980;              // Base downward acceleration (px/s^2)
   const BOUNCE_VELOCITY = -660;      // Automatic upward launch on platform landing (px/s)
   const AIR_JUMP_IMPULSE = -580;     // Single fixed air-jump upward impulse (px/s)
@@ -28,7 +34,16 @@
   const STEER_ACCEL_DOWN = 1600;    // Downward dive acceleration on holding Down/S (px/s^2)
   const MAX_FALL_SPEED = 880;       // Terminal downward vertical speed (px/s)
 
-  const BASE_ALTITUDE_Y = 620;      // Baseline Y coordinate for altitude scoring
+  const BASE_ALTITUDE_Y = 620;      // Baseline world Y coordinate for altitude scoring
+
+  // Level Milestones Formula
+  function getLevelMilestone(lvl) {
+    let m = 0;
+    for (let i = 1; i <= lvl; i++) {
+      m += 500 + (i - 1) * 200;
+    }
+    return m;
+  }
 
   // --- Game States ---
   const STATE = {
@@ -43,6 +58,12 @@
     constructor() {
       this.ctx = null;
       this.enabled = true;
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_SOUND);
+        if (saved !== null) {
+          this.enabled = saved !== 'false';
+        }
+      } catch (e) {}
     }
 
     init() {
@@ -57,6 +78,14 @@
       }
     }
 
+    setEnabled(val) {
+      this.enabled = !!val;
+      try {
+        localStorage.setItem(STORAGE_KEY_SOUND, this.enabled ? 'true' : 'false');
+      } catch (e) {}
+    }
+
+    // 1. Bounce: Soft, satisfying electronic pop
     playBounce() {
       if (!this.enabled || !this.ctx) return;
       try {
@@ -65,20 +94,92 @@
         const gain = this.ctx.createGain();
 
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(200, now);
-        osc.frequency.exponentialRampToValueAtTime(540, now + 0.12);
+        osc.frequency.setValueAtTime(420, now);
+        osc.frequency.exponentialRampToValueAtTime(170, now + 0.08);
 
         gain.gain.setValueAtTime(0.28, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.13);
+        osc.stop(now + 0.09);
       } catch (e) {}
     }
 
+    // 2. Level completion: Cheerful electronic chime
+    playLevelComplete() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const chord = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+        chord.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.075;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.23);
+        });
+      } catch (e) {}
+    }
+
+    // 3. Hazard collision: Distinct impact sound when player hits a spike
+    playHazard() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(60, now + 0.22);
+
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.23);
+      } catch (e) {}
+    }
+
+    // 4. Game over: Short descending electronic tone
+    playGameOver() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.42);
+
+        gain.gain.setValueAtTime(0.26, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.43);
+      } catch (e) {}
+    }
+
+    // Supplemental arcade sounds (Air jump & Head bump)
     playAirJump() {
       if (!this.enabled || !this.ctx) return;
       try {
@@ -87,17 +188,17 @@
         const gain = this.ctx.createGain();
 
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(320, now);
-        osc.frequency.exponentialRampToValueAtTime(680, now + 0.14);
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(640, now + 0.12);
 
-        gain.gain.setValueAtTime(0.22, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.15);
+        osc.stop(now + 0.13);
       } catch (e) {}
     }
 
@@ -109,17 +210,17 @@
         const gain = this.ctx.createGain();
 
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(220, now);
-        osc.frequency.exponentialRampToValueAtTime(95, now + 0.09);
+        osc.frequency.setValueAtTime(200, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
 
-        gain.gain.setValueAtTime(0.24, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.1);
+        osc.stop(now + 0.09);
       } catch (e) {}
     }
 
@@ -131,68 +232,22 @@
         const gain = this.ctx.createGain();
 
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160, now);
-        osc.frequency.exponentialRampToValueAtTime(90, now + 0.08);
+        osc.frequency.setValueAtTime(150, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.07);
 
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-
-        osc.connect(gain);
-        gain.connect(this.ctx.destination);
-
-        osc.start(now);
-        osc.stop(now + 0.09);
-      } catch (e) {}
-    }
-
-    playGameOver() {
-      if (!this.enabled || !this.ctx) return;
-      try {
-        const now = this.ctx.currentTime;
-        const osc = this.ctx.createOscillator();
-        const gain = this.ctx.createGain();
-
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(260, now);
-        osc.frequency.exponentialRampToValueAtTime(60, now + 0.45);
-
-        gain.gain.setValueAtTime(0.25, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
 
         osc.connect(gain);
         gain.connect(this.ctx.destination);
 
         osc.start(now);
-        osc.stop(now + 0.46);
-      } catch (e) {}
-    }
-
-    playNewRecord() {
-      if (!this.enabled || !this.ctx) return;
-      try {
-        const notes = [440, 554, 659, 880];
-        notes.forEach((freq, idx) => {
-          const now = this.ctx.currentTime + idx * 0.09;
-          const osc = this.ctx.createOscillator();
-          const gain = this.ctx.createGain();
-
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(freq, now);
-
-          gain.gain.setValueAtTime(0.18, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-
-          osc.connect(gain);
-          gain.connect(this.ctx.destination);
-
-          osc.start(now);
-          osc.stop(now + 0.19);
-        });
+        osc.stop(now + 0.08);
       } catch (e) {}
     }
   }
 
-  // --- Ball Entity ---
+  // --- Ball Entity (World Space) ---
   class Ball {
     constructor() {
       this.radius = 14;
@@ -228,7 +283,7 @@
       this.vy = BOUNCE_VELOCITY;
       this.squashX = 1.38;
       this.squashY = 0.65;
-      this.hasAirJump = true; // Landing on a platform resets air jump
+      this.hasAirJump = true; // Landing resets air jump availability
     }
 
     updateVisuals(dt) {
@@ -242,7 +297,7 @@
         this.squashX = 0.88;
       }
 
-      // Trail update
+      // Trail update in world coordinates
       this.trail.unshift({ x: this.x, y: this.y, alpha: 0.7 });
       if (this.trail.length > 8) {
         this.trail.pop();
@@ -287,7 +342,7 @@
       if (this.hasAirJump) {
         ctx.beginPath();
         ctx.arc(0, 0, this.radius * 1.45, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -321,9 +376,9 @@
     }
   }
 
-  // --- Platform Entity with Deterministic Horizontal Movement ---
+  // --- Platform Entity with Moving & Spike Hazard Support ---
   class Platform {
-    constructor(x, y, width, height = 16, label = '', vx = 0, minX = 0, maxX = CANVAS_WIDTH) {
+    constructor(x, y, width, height = 16, label = '', vx = 0, minX = 0, maxX = CANVAS_WIDTH, spike = null) {
       this.x = x;
       this.y = y;
       this.prevX = x;
@@ -334,6 +389,7 @@
       this.vx = vx;
       this.minX = minX;
       this.maxX = maxX;
+      this.spike = spike; // { width: 32, height: 14, side: 'left'|'right' }
     }
 
     update(subDt) {
@@ -417,13 +473,51 @@
         ctx.stroke();
       }
 
-      // Platform Tier Label (subtle neon text)
+      // Platform Tier Label
       if (this.label) {
         ctx.font = '600 10px Orbitron, sans-serif';
         ctx.fillStyle = 'rgba(168, 85, 247, 0.7)';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(this.label, this.x + this.width / 2, drawY + this.height / 2);
+      }
+
+      // Render Spike Hazard (if attached)
+      if (this.spike) {
+        const sX = (this.spike.side === 'left') ? this.x + 4 : this.x + this.width - this.spike.width - 4;
+        const sY = drawY;
+        const sW = this.spike.width;
+        const sH = this.spike.height;
+
+        ctx.save();
+        // Red hazard base indicator
+        ctx.fillStyle = 'rgba(255, 42, 109, 0.4)';
+        ctx.fillRect(sX, sY, sW, 3);
+
+        // Three glowing neon spikes
+        const teeth = 3;
+        const toothW = sW / teeth;
+        for (let i = 0; i < teeth; i++) {
+          const tLeft = sX + i * toothW;
+          const tMid = tLeft + toothW / 2;
+          const tRight = tLeft + toothW;
+
+          ctx.beginPath();
+          ctx.moveTo(tLeft, sY);
+          ctx.lineTo(tMid, sY - sH);
+          ctx.lineTo(tRight, sY);
+          ctx.closePath();
+
+          ctx.fillStyle = '#ff2a6d';
+          ctx.shadowColor = '#ff2a6d';
+          ctx.shadowBlur = 8;
+          ctx.fill();
+
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+        ctx.restore();
       }
 
       ctx.restore();
@@ -434,7 +528,7 @@
   class ParticleManager {
     constructor() {
       this.particles = [];
-      this.maxParticles = 70;
+      this.maxParticles = 80;
     }
 
     reset() {
@@ -466,7 +560,6 @@
         if (this.particles.length >= this.maxParticles) {
           this.particles.shift();
         }
-        // Downward spray angle
         const angle = (Math.random() - 0.5) * Math.PI * 0.8;
         const speed = 60 + Math.random() * 130;
         this.particles.push({
@@ -498,6 +591,26 @@
           color: '#00f0ff',
           life: 1.0,
           decay: 2.8,
+        });
+      }
+    }
+
+    spawnHazardSparks(x, y, count = 16) {
+      for (let i = 0; i < count; i++) {
+        if (this.particles.length >= this.maxParticles) {
+          this.particles.shift();
+        }
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 90 + Math.random() * 180;
+        this.particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: 2 + Math.random() * 2.5,
+          color: Math.random() > 0.5 ? '#ff2a6d' : '#ffd166',
+          life: 1.0,
+          decay: 2.5,
         });
       }
     }
@@ -551,33 +664,22 @@
     }
   }
 
-  // --- Background Grid & Neon Ambiance ---
+  // --- Background Grid & Parallax Neon Ambiance ---
   class Background {
     constructor() {
       this.stars = [];
-      for (let i = 0; i < 28; i++) {
+      for (let i = 0; i < 35; i++) {
         this.stars.push({
           x: Math.random() * CANVAS_WIDTH,
           y: Math.random() * CANVAS_HEIGHT,
-          radius: 0.8 + Math.random() * 1.2,
+          radius: 0.8 + Math.random() * 1.4,
           alpha: 0.2 + Math.random() * 0.6,
-          speed: 8 + Math.random() * 14,
+          parallax: 0.2 + Math.random() * 0.5,
         });
       }
     }
 
-    update(dt) {
-      for (let i = 0; i < this.stars.length; i++) {
-        const star = this.stars[i];
-        star.y += star.speed * dt;
-        if (star.y > CANVAS_HEIGHT) {
-          star.y = 0;
-          star.x = Math.random() * CANVAS_WIDTH;
-        }
-      }
-    }
-
-    render(ctx) {
+    render(ctx, cameraY) {
       ctx.save();
 
       // Deep dark navy backdrop
@@ -588,11 +690,12 @@
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Subtle cyber grid lines
+      // Subtle cyber grid lines that scroll seamlessly with camera
       ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
       ctx.lineWidth = 1;
       const gridSize = 40;
 
+      // Vertical grid lines
       for (let x = 0; x < CANVAS_WIDTH; x += gridSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
@@ -600,28 +703,26 @@
         ctx.stroke();
       }
 
-      for (let y = 0; y < CANVAS_HEIGHT; y += gridSize) {
+      // Horizontal grid lines offset by camera position
+      const gridOffsetY = ((-cameraY) % gridSize + gridSize) % gridSize;
+      for (let y = gridOffsetY; y < CANVAS_HEIGHT; y += gridSize) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(CANVAS_WIDTH, y);
         ctx.stroke();
       }
 
-      // Floating cyber particles / stars
+      // Floating cyber particles / stars with parallax
       for (let i = 0; i < this.stars.length; i++) {
         const star = this.stars[i];
+        // Calculate screen Y with parallax wrapping
+        const screenStarY = ((star.y - cameraY * star.parallax) % CANVAS_HEIGHT + CANVAS_HEIGHT) % CANVAS_HEIGHT;
+
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        ctx.arc(star.x, screenStarY, star.radius, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(168, 85, 247, ${star.alpha})`;
         ctx.fill();
       }
-
-      // Bottom danger void glow
-      const dangerGrad = ctx.createLinearGradient(0, CANVAS_HEIGHT - 60, 0, CANVAS_HEIGHT);
-      dangerGrad.addColorStop(0, 'rgba(255, 42, 109, 0)');
-      dangerGrad.addColorStop(1, 'rgba(255, 42, 109, 0.12)');
-      ctx.fillStyle = dangerGrad;
-      ctx.fillRect(0, CANVAS_HEIGHT - 60, CANVAS_WIDTH, 60);
 
       ctx.restore();
     }
@@ -640,12 +741,24 @@
       this.pauseScreen = document.getElementById('pauseScreen');
       this.gameOverScreen = document.getElementById('gameOverScreen');
       this.gameHud = document.getElementById('gameHud');
+
+      // Progression HUD elements
+      this.hudLevelText = document.getElementById('hudLevelText');
+      this.hudLevelProgress = document.getElementById('hudLevelProgress');
       this.hudScore = document.getElementById('hudScore');
       this.hudBest = document.getElementById('hudBest');
       this.menuBestScore = document.getElementById('menuBestScore');
+      this.menuHighestLevel = document.getElementById('menuHighestLevel');
       this.finalScore = document.getElementById('finalScore');
       this.finalBestScore = document.getElementById('finalBestScore');
+      this.finalLevelReached = document.getElementById('finalLevelReached');
+      this.gameOverSubtext = document.getElementById('gameOverSubtext');
       this.newBestTag = document.getElementById('newBestTag');
+
+      // Level Banner Element
+      this.levelBanner = document.getElementById('levelBanner');
+      this.levelBannerTitle = document.getElementById('levelBannerTitle');
+      this.bannerTimeoutId = null;
 
       // Buttons
       this.playBtn = document.getElementById('playBtn');
@@ -653,8 +766,9 @@
       this.restartBtn = document.getElementById('restartBtn');
       this.restartFromPauseBtn = document.getElementById('restartFromPauseBtn');
       this.pauseBtn = document.getElementById('pauseBtn');
+      this.soundBtn = document.getElementById('soundBtn');
 
-      // Mobile 4-Directional Touch Buttons
+      // Mobile Touch Buttons
       this.touchUp = document.getElementById('touchUp');
       this.touchDown = document.getElementById('touchDown');
       this.touchLeft = document.getElementById('touchLeft');
@@ -666,17 +780,14 @@
       this.particles = new ParticleManager();
       this.ball = new Ball();
 
-      // 3 Horizontally Moving Platforms with deterministic patrol ranges
-      // Start Base: Wide (240px), slow (45px/s), patrols x=60 to 180 (spans 60-420px)
-      // Tier 1: 140px, 80px/s, patrols x=30 to 310
-      // Tier 2: 140px, 70px/s, patrols x=40 to 300
-      this.platforms = [
-        new Platform(120, 620, 240, 18, 'START BASE', 45, 60, 180),
-        new Platform(80, 440, 140, 16, 'TIER 1', -80, 30, 310),
-        new Platform(250, 260, 140, 16, 'TIER 2', 70, 40, 300),
-      ];
+      // Camera Y (world space offset)
+      this.cameraY = 0;
 
-      // Input State (Continuous keys for steering; edge-detection for air jump)
+      // Platforms array & Procedural Generation Tracker
+      this.platforms = [];
+      this.highestGeneratedY = 260;
+
+      // Input State
       this.keys = {
         left: false,
         right: false,
@@ -687,6 +798,8 @@
       this.currentState = STATE.MENU;
       this.score = 0;
       this.maxAltitude = 0;
+      this.level = 1;
+      this.highestLevelCompleted = this.loadHighestLevel();
       this.bestScore = this.loadBestScore();
       this.isNewRecord = false;
 
@@ -696,6 +809,7 @@
 
       // Initialize
       this.setupEventListeners();
+      this.updateSoundButtonUI();
       this.updateScoreDisplays();
       this.setGameState(STATE.MENU);
 
@@ -707,7 +821,7 @@
     // --- Persistence ---
     loadBestScore() {
       try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+        const saved = localStorage.getItem(STORAGE_KEY_BEST);
         return saved ? Math.max(0, parseInt(saved, 10) || 0) : 0;
       } catch (e) {
         return 0;
@@ -716,8 +830,62 @@
 
     saveBestScore(val) {
       try {
-        localStorage.setItem(STORAGE_KEY, val.toString());
+        localStorage.setItem(STORAGE_KEY_BEST, val.toString());
       } catch (e) {}
+    }
+
+    loadHighestLevel() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_LEVEL);
+        return saved ? Math.max(1, parseInt(saved, 10) || 1) : 1;
+      } catch (e) {
+        return 1;
+      }
+    }
+
+    saveHighestLevel(val) {
+      try {
+        localStorage.setItem(STORAGE_KEY_LEVEL, val.toString());
+      } catch (e) {}
+    }
+
+    toggleSound() {
+      this.sound.init();
+      this.sound.setEnabled(!this.sound.enabled);
+      this.updateSoundButtonUI();
+    }
+
+    updateSoundButtonUI() {
+      if (!this.soundBtn) return;
+      const onIcon = this.soundBtn.querySelector('.sound-on-icon');
+      const offIcon = this.soundBtn.querySelector('.sound-off-icon');
+      if (this.sound.enabled) {
+        if (onIcon) onIcon.classList.remove('hidden');
+        if (offIcon) offIcon.classList.add('hidden');
+        this.soundBtn.classList.remove('active-muted');
+      } else {
+        if (onIcon) onIcon.classList.add('hidden');
+        if (offIcon) offIcon.classList.remove('hidden');
+        this.soundBtn.classList.add('active-muted');
+      }
+    }
+
+    // --- Level Milestone Banner ---
+    showLevelBanner(lvl) {
+      if (!this.levelBanner) return;
+      if (this.bannerTimeoutId) {
+        clearTimeout(this.bannerTimeoutId);
+      }
+      this.levelBannerTitle.textContent = `LEVEL ${lvl} REACHED!`;
+      this.levelBanner.classList.remove('hidden');
+      // Trigger CSS animation re-flow
+      this.levelBanner.style.animation = 'none';
+      void this.levelBanner.offsetWidth; // re-flow
+      this.levelBanner.style.animation = '';
+
+      this.bannerTimeoutId = setTimeout(() => {
+        this.levelBanner.classList.add('hidden');
+      }, 2600);
     }
 
     // --- State Transitions ---
@@ -747,21 +915,28 @@
       this.sound.init();
       this.score = 0;
       this.maxAltitude = 0;
+      this.level = 1;
+      this.cameraY = 0;
       this.isNewRecord = false;
       this.newBestTag.classList.add('hidden');
+      if (this.levelBanner) this.levelBanner.classList.add('hidden');
 
       // Reset Ball
       this.ball.reset(240, 580);
-      this.ball.vy = BOUNCE_VELOCITY * 0.7; // Initial small drop/hop from safe base
+      this.ball.vy = BOUNCE_VELOCITY * 0.7; // Initial small drop from safe base
       this.ball.hasAirJump = false;
       this.particles.reset();
 
-      // Reset Moving Platforms to initial deterministic states
+      // Reset Initial Platforms (Level 1 start: completely hazard free)
       this.platforms = [
         new Platform(120, 620, 240, 18, 'START BASE', 45, 60, 180),
         new Platform(80, 440, 140, 16, 'TIER 1', -80, 30, 310),
         new Platform(250, 260, 140, 16, 'TIER 2', 70, 40, 300),
       ];
+      this.highestGeneratedY = 260;
+
+      // Generate initial buffer of platforms above Tier 2
+      this.generatePlatformsAhead();
 
       this.updateScoreDisplays();
       this.setGameState(STATE.PLAYING);
@@ -776,7 +951,9 @@
       }
     }
 
-    triggerGameOver() {
+    triggerGameOver(reason = 'The orb fell into the void') {
+      if (this.currentState === STATE.GAMEOVER) return;
+
       this.setGameState(STATE.GAMEOVER);
       this.sound.playGameOver();
       this.resetHeldKeys();
@@ -786,14 +963,21 @@
         this.bestScore = this.score;
         this.saveBestScore(this.bestScore);
         this.isNewRecord = true;
-        this.sound.playNewRecord();
         this.newBestTag.classList.remove('hidden');
       } else {
         this.newBestTag.classList.add('hidden');
       }
 
+      // Check highest level reached
+      if (this.level > this.highestLevelCompleted) {
+        this.highestLevelCompleted = this.level;
+        this.saveHighestLevel(this.highestLevelCompleted);
+      }
+
       this.finalScore.textContent = this.score;
       this.finalBestScore.textContent = this.bestScore;
+      this.finalLevelReached.textContent = this.level;
+      if (this.gameOverSubtext) this.gameOverSubtext.textContent = reason;
       this.updateScoreDisplays();
     }
 
@@ -801,6 +985,8 @@
       this.hudScore.textContent = this.score;
       this.hudBest.textContent = this.bestScore;
       this.menuBestScore.textContent = this.bestScore;
+      if (this.menuHighestLevel) this.menuHighestLevel.textContent = this.highestLevelCompleted;
+      if (this.hudLevelText) this.hudLevelText.textContent = `LVL ${this.level}`;
     }
 
     resetHeldKeys() {
@@ -819,6 +1005,73 @@
       }
     }
 
+    // --- Procedural Generation & Recycling ---
+    generatePlatformsAhead() {
+      // Keep platforms generated at least 650px above camera viewport
+      while (this.highestGeneratedY > this.cameraY - 650) {
+        // Consistent, bounded vertical gap (122px to 152px)
+        const spacing = 124 + Math.random() * 28;
+        const newY = this.highestGeneratedY - spacing;
+        this.highestGeneratedY = newY;
+
+        // Current altitude in world space for progressive difficulty
+        const altitude = Math.max(0, (BASE_ALTITUDE_Y - newY) / 2);
+
+        // Platform width
+        let width = 140;
+        if (altitude < 500) {
+          width = 135 + Math.random() * 25; // 135 - 160px
+        } else if (altitude < 1200) {
+          width = 125 + Math.random() * 25; // 125 - 150px
+        } else {
+          width = 115 + Math.random() * 25; // 115 - 140px
+        }
+
+        // Horizontal position within playable bounds
+        const minX = 25;
+        const maxX = CANVAS_WIDTH - width - 25;
+        const x = minX + Math.random() * (maxX - minX);
+
+        // Moving platform probability & speed
+        let vx = 0;
+        let platMinX = 0;
+        let platMaxX = CANVAS_WIDTH;
+
+        const moveChance = altitude < 500 ? 0.35 : (altitude < 1200 ? 0.52 : 0.65);
+        if (Math.random() < moveChance) {
+          const speed = (altitude < 500 ? 45 : 55) + Math.random() * 30;
+          vx = (Math.random() > 0.5 ? 1 : -1) * speed;
+          const patrolRange = 40 + Math.random() * 55;
+          platMinX = Math.max(20, x - patrolRange);
+          platMaxX = Math.min(CANVAS_WIDTH - width - 20, x + patrolRange);
+        }
+
+        // Spike Hazard placement:
+        // Level 1 (altitude < 500): ZERO hazards for safe introductory climb!
+        // Level 2 (500 <= altitude < 1200): 18% chance on generous platforms
+        // Level 3+ (altitude >= 1200): 26% chance
+        let spike = null;
+        if (altitude >= 500) {
+          const spikeChance = altitude < 1200 ? 0.18 : 0.26;
+          if (Math.random() < spikeChance) {
+            spike = {
+              width: 32,
+              height: 13,
+              side: Math.random() > 0.5 ? 'left' : 'right',
+            };
+          }
+        }
+
+        this.platforms.push(
+          new Platform(x, newY, width, 16, '', vx, platMinX, platMaxX, spike)
+        );
+      }
+
+      // Memory cleanup: Recycle/remove platforms far below camera view
+      const removeThresholdY = this.cameraY + CANVAS_HEIGHT + 240;
+      this.platforms = this.platforms.filter(p => p.y <= removeThresholdY);
+    }
+
     // --- Event Listeners ---
     setupEventListeners() {
       // Keyboard Down
@@ -826,6 +1079,12 @@
         // Prevent default scrolling on game navigation keys
         if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Space'].includes(e.code)) {
           e.preventDefault();
+        }
+
+        // Toggle sound key
+        if (e.code === 'KeyM') {
+          this.toggleSound();
+          return;
         }
 
         // Ignore auto-repeated events from held keys
@@ -881,6 +1140,9 @@
       this.restartBtn.addEventListener('click', () => this.startNewGame());
       this.restartFromPauseBtn.addEventListener('click', () => this.startNewGame());
       this.pauseBtn.addEventListener('click', () => this.togglePause());
+      if (this.soundBtn) {
+        this.soundBtn.addEventListener('click', () => this.toggleSound());
+      }
 
       // Touch Buttons for Mobile
       if (this.touchUp) {
@@ -959,33 +1221,59 @@
       this.ball.x += this.ball.vx * subDt;
       this.ball.y += this.ball.vy * subDt;
 
-      // 4. Boundary Checks (Walls & Ceiling)
-      // Left Wall
+      // 4. Boundary Checks (Playable Left & Right Walls)
       if (this.ball.x - this.ball.radius < 0) {
         this.ball.x = this.ball.radius;
         this.ball.vx = Math.abs(this.ball.vx) * 0.55;
         this.particles.spawnWallSparks(0, this.ball.y, true);
         this.sound.playWallBounce();
-      }
-      // Right Wall
-      else if (this.ball.x + this.ball.radius > CANVAS_WIDTH) {
+      } else if (this.ball.x + this.ball.radius > CANVAS_WIDTH) {
         this.ball.x = CANVAS_WIDTH - this.ball.radius;
         this.ball.vx = -Math.abs(this.ball.vx) * 0.55;
         this.particles.spawnWallSparks(CANVAS_WIDTH, this.ball.y, false);
         this.sound.playWallBounce();
       }
 
-      // Top Ceiling (prevents escaping top of view)
-      if (this.ball.y - this.ball.radius < 0) {
-        this.ball.y = this.ball.radius;
-        if (this.ball.vy < 0) {
-          this.ball.vy = -this.ball.vy * 0.2; // Gentle downward deflection
+      // 5. Spike Hazard Collision Detection
+      for (let i = 0; i < this.platforms.length; i++) {
+        const p = this.platforms[i];
+        if (!p.spike) continue;
+
+        // Spike bounding box
+        const sLeft = (p.spike.side === 'left') ? p.x + 4 : p.x + p.width - p.spike.width - 4;
+        const sRight = sLeft + p.spike.width;
+        const sTop = p.y - p.spike.height;
+        const sBottom = p.y;
+
+        // Circle - Rect collision check
+        const closestX = Math.max(sLeft, Math.min(this.ball.x, sRight));
+        const closestY = Math.max(sTop, Math.min(this.ball.y, sBottom));
+        const dx = this.ball.x - closestX;
+        const dy = this.ball.y - closestY;
+        const hitDistSq = (this.ball.radius * 0.85) * (this.ball.radius * 0.85);
+
+        if (dx * dx + dy * dy < hitDistSq) {
+          this.sound.playHazard();
+          this.particles.spawnHazardSparks(this.ball.x, this.ball.y);
+          this.triggerGameOver('Shattered by a hazard spike!');
+          return;
         }
       }
 
-      // 5. Consistent 2-Way Platform Collision Handling
+      // 6. Consistent 2-Way Platform Collision Handling
       for (let i = 0; i < this.platforms.length; i++) {
         const p = this.platforms[i];
+
+        // Safe landing zone calculation (excludes spike portion if present)
+        let safeLeft = p.x;
+        let safeRight = p.x + p.width;
+        if (p.spike) {
+          if (p.spike.side === 'left') {
+            safeLeft = p.x + p.spike.width + 2;
+          } else {
+            safeRight = p.x + p.width - p.spike.width - 2;
+          }
+        }
 
         // Horizontal overlap calculation (including swept range of platform & ball)
         const ballLeft = this.ball.x - this.ball.radius * 0.72;
@@ -993,19 +1281,23 @@
         const prevBallLeft = this.ball.prevX - this.ball.radius * 0.72;
         const prevBallRight = this.ball.prevX + this.ball.radius * 0.72;
 
-        const platLeft = Math.min(p.x, p.prevX);
-        const platRight = Math.max(p.x + p.width, p.prevX + p.width);
+        const pPlatLeft = Math.min(safeLeft, safeLeft + (p.x - p.prevX));
+        const pPlatRight = Math.max(safeRight, safeRight + (p.x - p.prevX));
 
-        const isHOverlap = (ballRight >= platLeft && ballLeft <= platRight) ||
-                           (prevBallRight >= platLeft && prevBallLeft <= platRight);
+        const isSafeHOverlap = (ballRight >= pPlatLeft && ballLeft <= pPlatRight) ||
+                               (prevBallRight >= pPlatLeft && prevBallLeft <= pPlatRight);
 
-        if (!isHOverlap) continue;
+        // Entire platform horizontal overlap (used for underside collision)
+        const fullPlatLeft = Math.min(p.x, p.prevX);
+        const fullPlatRight = Math.max(p.x + p.width, p.prevX + p.width);
+        const isFullHOverlap = (ballRight >= fullPlatLeft && ballLeft <= fullPlatRight) ||
+                               (prevBallRight >= fullPlatLeft && prevBallLeft <= fullPlatRight);
 
         const platTop = p.y;
         const platBottom = p.y + p.height;
 
         // --- DIRECTION A: Descending (vy >= 0) -> Land on top surface ---
-        if (this.ball.vy >= 0) {
+        if (this.ball.vy >= 0 && isSafeHOverlap) {
           const ballBottom = this.ball.y + this.ball.radius;
           const prevBottom = this.ball.prevY + this.ball.radius;
 
@@ -1025,7 +1317,7 @@
           }
         }
         // --- DIRECTION B: Ascending (vy < 0) -> Hit underside of platform ---
-        else if (this.ball.vy < 0) {
+        else if (this.ball.vy < 0 && isFullHOverlap) {
           const ballTop = this.ball.y - this.ball.radius;
           const prevTop = this.ball.prevY - this.ball.radius;
 
@@ -1047,13 +1339,6 @@
 
     // --- Physics & Update ---
     update(dt) {
-      this.background.update(dt);
-      this.particles.update(dt);
-
-      for (let i = 0; i < this.platforms.length; i++) {
-        this.platforms[i].updateVisuals(dt);
-      }
-
       if (this.currentState !== STATE.PLAYING) {
         return;
       }
@@ -1065,21 +1350,66 @@
         const subDt = Math.min(remainingDt, maxSubDt);
         this.physicsSubStep(subDt);
         remainingDt -= subDt;
+        if (this.currentState !== STATE.PLAYING) return;
       }
 
+      // Update visual animations
+      this.particles.update(dt);
+      for (let i = 0; i < this.platforms.length; i++) {
+        this.platforms[i].updateVisuals(dt);
+      }
       this.ball.updateVisuals(dt);
+
+      // Camera: Vertical follow upward
+      // Keeps ball comfortably positioned on screen (~360px from top)
+      const targetCameraY = this.ball.y - 360;
+      if (targetCameraY < this.cameraY) {
+        // Smooth upward scroll
+        this.cameraY += (targetCameraY - this.cameraY) * Math.min(1, dt * 9);
+      }
+      // Never allow ball to rise above top 240px without camera keeping up
+      if (this.ball.y - this.cameraY < 240) {
+        this.cameraY = this.ball.y - 240;
+      }
+
+      // Generate upcoming platforms ahead & cleanup far-below platforms
+      this.generatePlatformsAhead();
 
       // Scoring calculation (Altitude above base platform)
       const currentAltitude = Math.max(0, Math.floor((BASE_ALTITUDE_Y - this.ball.y) / 2));
       if (currentAltitude > this.maxAltitude) {
         this.maxAltitude = currentAltitude;
         this.score = this.maxAltitude;
-        this.updateScoreDisplays();
       }
 
-      // Game Over detection (Ball falls below bottom screen boundary)
-      if (this.ball.y - this.ball.radius > CANVAS_HEIGHT) {
-        this.triggerGameOver();
+      // Level Progression System
+      const prevMilestone = this.level === 1 ? 0 : getLevelMilestone(this.level - 1);
+      const nextMilestone = getLevelMilestone(this.level);
+
+      // Check level completion milestone
+      if (this.score >= nextMilestone) {
+        this.level++;
+        this.showLevelBanner(this.level);
+        this.sound.playLevelComplete();
+
+        if (this.level > this.highestLevelCompleted) {
+          this.highestLevelCompleted = this.level;
+          this.saveHighestLevel(this.level);
+        }
+      }
+
+      // Update Progress Bar
+      const currentSpan = nextMilestone - prevMilestone;
+      const progress = Math.min(1, Math.max(0, (this.score - prevMilestone) / currentSpan));
+      if (this.hudLevelProgress) {
+        this.hudLevelProgress.style.width = `${Math.round(progress * 100)}%`;
+      }
+
+      this.updateScoreDisplays();
+
+      // Game Over detection: Ball falls below bottom edge of screen viewport
+      if (this.ball.y - this.cameraY - this.ball.radius > CANVAS_HEIGHT) {
+        this.triggerGameOver('The orb fell into the void');
       }
     }
 
@@ -1088,10 +1418,15 @@
       // Clear canvas
       this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-      // Render Background
-      this.background.render(this.ctx);
+      // Render Parallax Background (uses cameraY for parallax scroll)
+      this.background.render(this.ctx, this.cameraY);
 
-      // Render Platforms
+      // Render World Entities (Platforms, Hazards, Particles, Ball)
+      // Transformed by Camera Y offset
+      this.ctx.save();
+      this.ctx.translate(0, -this.cameraY);
+
+      // Render Platforms & Spikes
       for (let i = 0; i < this.platforms.length; i++) {
         this.platforms[i].render(this.ctx);
       }
@@ -1103,6 +1438,8 @@
       if (this.currentState === STATE.PLAYING || this.currentState === STATE.PAUSED) {
         this.ball.render(this.ctx);
       }
+
+      this.ctx.restore();
     }
 
     // --- Main Loop ---
