@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BOUNCE — Neon Arcade Game</title>
+  <meta name="description" content="BOUNCE is a sleek neon arcade vertical bouncing-ball game built with HTML5 Canvas and Vanilla JavaScript.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="game-wrapper">
+    <!-- Header with game title and badges -->
+    <header class="game-header">
+      <h1 class="brand-title">BOUNCE</h1>
+      <div class="version-badge">v1.0 Arcade</div>
+    </header>
+
+    <!-- Main Game Container -->
+    <div class="game-container" id="gameContainer">
+      <!-- HUD (In-Game Top Bar) -->
+      <div class="game-hud" id="gameHud">
+        <div class="hud-item">
+          <span class="hud-label">ALTITUDE</span>
+          <span class="hud-value" id="hudScore">0</span>
+        </div>
+        <div class="hud-item">
+          <span class="hud-label">BEST</span>
+          <span class="hud-value" id="hudBest">0</span>
+        </div>
+        <button class="icon-btn" id="pauseBtn" title="Pause Game (Esc)" aria-label="Pause Game">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
+            <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Canvas rendering surface -->
+      <canvas id="gameCanvas" width="480" height="700"></canvas>
+
+      <!-- UI Overlays -->
+      <!-- 1. Main Menu Screen -->
+      <div class="ui-screen active" id="menuScreen">
+        <div class="screen-content">
+          <div class="logo-glow-wrapper">
+            <h2 class="neon-logo">BOUNCE</h2>
+            <div class="neon-subtitle">NEON VERTICAL ARCADE</div>
+          </div>
+
+          <div class="instructions-card">
+            <p class="instruction-text">
+              The orb automatically bounces when landing on moving platforms. Steer with A/D, use W/Up for 1 air jump per bounce, and avoid falling!
+            </p>
+            <div class="controls-hint">
+              <div class="key-pill"><span>W</span> / <span>&uarr;</span> Air Jump (1x)</div>
+              <div class="key-pill"><span>A</span> / <span>&larr;</span> Left</div>
+              <div class="key-pill"><span>D</span> / <span>&rarr;</span> Right</div>
+              <div class="key-pill"><span>S</span> / <span>&darr;</span> Dive</div>
+              <div class="key-pill"><span>ESC</span> Pause</div>
+            </div>
+          </div>
+
+          <div class="stats-preview">
+            <span class="stat-label">RECORD ALTITUDE</span>
+            <span class="stat-val" id="menuBestScore">0</span>
+          </div>
+
+          <button class="neon-btn primary-neon-btn" id="playBtn">
+            <span>PLAY GAME</span>
+            <div class="btn-glow"></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Pause Overlay -->
+      <div class="ui-screen hidden" id="pauseScreen">
+        <div class="screen-content">
+          <h2 class="neon-screen-title">GAME PAUSED</h2>
+          <p class="screen-subtext">Take a breather</p>
+
+          <div class="pause-actions">
+            <button class="neon-btn primary-neon-btn" id="resumeBtn">
+              <span>RESUME</span>
+              <div class="btn-glow"></div>
+            </button>
+            <button class="neon-btn secondary-neon-btn" id="restartFromPauseBtn">
+              <span>RESTART</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Game Over Screen -->
+      <div class="ui-screen hidden" id="gameOverScreen">
+        <div class="screen-content">
+          <div class="game-over-header">
+            <h2 class="neon-screen-title danger-glow">GAME OVER</h2>
+            <p class="screen-subtext" id="gameOverSubtext">The orb fell into the void</p>
+          </div>
+
+          <div class="score-summary-card">
+            <div class="score-row">
+              <span class="score-row-label">FINAL ALTITUDE</span>
+              <span class="score-row-value cyan-glow" id="finalScore">0</span>
+            </div>
+            <div class="score-row">
+              <span class="score-row-label">BEST RECORD</span>
+              <span class="score-row-value purple-glow" id="finalBestScore">0</span>
+            </div>
+            <div class="new-best-tag hidden" id="newBestTag">★ NEW RECORD! ★</div>
+          </div>
+
+          <button class="neon-btn primary-neon-btn" id="restartBtn">
+            <span>PLAY AGAIN</span>
+            <div class="btn-glow"></div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- On-screen 4-directional touch controls for mobile / touch devices -->
+    <div class="touch-controls" id="touchControls">
+      <div class="touch-dpad">
+        <button class="touch-btn dpad-up" id="touchUp" aria-label="Steer Up">&uarr;</button>
+        <div class="dpad-horizontal">
+          <button class="touch-btn dpad-left" id="touchLeft" aria-label="Steer Left">&larr;</button>
+          <button class="touch-btn dpad-right" id="touchRight" aria-label="Steer Right">&rarr;</button>
+        </div>
+        <button class="touch-btn dpad-down" id="touchDown" aria-label="Steer Down">&darr;</button>
+      </div>
+    </div>
+
+    <!-- Footer with instructions -->
+    <footer class="game-footer">
+      <p>Controls: <kbd>A</kbd><kbd>D</kbd> or <kbd>&larr;</kbd><kbd>&rarr;</kbd> Move | <kbd>W</kbd> or <kbd>&uarr;</kbd> Air Jump (1x) | <kbd>S</kbd> or <kbd>&darr;</kbd> Dive | <kbd>Enter</kbd> Start/Restart | <kbd>Esc</kbd> Pause</p>
+    </footer>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
