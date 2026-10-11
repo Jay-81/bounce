@@ -37,15 +37,20 @@ Watch the game being played live by a high-skill automated AI player without tou
 
 ### Key Capabilities
 - **Zero Physics Cheating**: Operates strictly within the game's standard physics engine ($g = 980\text{ px/s}^2$, $v_{\text{bounce}} = -660\text{ px/s}$, $v_{\text{air}} = -580\text{ px/s}$). No artificial speed, invulnerability, or teleportation.
-- **Parabolic Trajectory Projection**: Calculates quadratic ballistic flight curves in real time to locate safe landing zones.
+- **Progress-Aware Target Selection**: Evaluates multiple platform tiers simultaneously, prioritizing immediate progressive climb tiers ($\Delta h \in [80, 210\text{px}]$) while keeping nearby lower platforms strictly as fallback recovery options.
+- **Waypoint Ascent Navigation**: Detects overhead platform undersides during ball ascent and routes horizontal steering through clear side corridors, completely preventing ceiling head-bump deflections.
+- **Anti-Stall Loop Prevention**: Tracks recent landings across multiple bounces. If the AI detects repeated landings on the same tier, it temporarily penalizes the stalled target, recalculates alternatives, and fires an apex boost to break out.
+- **Parabolic Trajectory Projection**: Calculates exact quadratic descent curves in real time for moving and stationary platforms.
 - **Moving Platform Interception**: Projects moving platforms forward in time ($p.x(t)$ with bouncing patrol limits) to time landings accurately.
-- **Hazard Spike Avoidance**: Recognizes spike obstacles on platform edges and steers towards designated safe landing zones.
+- **Hazard Spike Avoidance**: Recognizes spike obstacles on platform edges and steers towards designated safe landing zones with repulsion margins.
 - **Tactical Air Jump**:
   - *Apex Boost*: Deploys the single air jump near ascent peak ($v_y \approx 0$) to reach higher platforms.
-  - *Emergency Descent Catch*: Deploys an emergency recovery jump if falling toward the void.
+  - *Stall Breakout*: Deploys an apex boost when repeated landings are detected to clear blocked tiers.
+  - *Emergency Descent Catch*: Deploys an emergency recovery jump if falling toward the void without an imminent platform landing.
 - **Safe Collectible Gathering**: Gathers reachable glowing energy orbs and special stars only when deviation maintains a safe landing margin.
-- **Spectator Experience**:
+- **Spectator Experience & Live Diagnostics**:
   - Floating `SPECTATOR: AI PLAYING` badge with live status dot.
+  - Toggle live diagnostic overlay HUD (<kbd>D</kbd>) displaying target platform ID, target height, predicted landing X, current/max altitude, consecutive stall counter, air jump availability, and candidate rejection reasons.
   - Immediate `STOP` button to return to manual play anytime.
   - Seamless Pause (<kbd>Esc</kbd> or <kbd>P</kbd>) and Resume.
   - Automated restart loop (1.8s delay after 3-star results board) for continuous hands-free spectator viewing.

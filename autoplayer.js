@@ -28,9 +28,12 @@
   const GRAVITY = 980;
   const BOUNCE_VELOCITY = -660;
   const AIR_JUMP_IMPULSE = -580;
-  const MAX_SPEED_X = 360;
+  const MAX_SPEED_X = 340;
+  const MOVE_ACCEL_X = 2200;
+  const MOVE_DECEL_X = 1600;
   const CANVAS_WIDTH = 480;
   const CANVAS_HEIGHT = 700;
+  const BASE_ALTITUDE_Y = 620;
 
   // --- Helper: Moving Platform Motion Projection ---
   function predictPlatformAtTime(p, flightTime) {
@@ -67,7 +70,7 @@
         left: platX + 12,
         right: platX + width - 12,
         center: platX + width * 0.5,
-        width: width - 24,
+        width: Math.max(0, width - 24),
         hasSpike: false,
       };
     }
@@ -105,7 +108,7 @@
   }
 
   // ==========================================================================
-  // 1. SKILLED AI AUTOPLAYER CONTROLLER
+  // 1. PROGRESS-AWARE SKILLED AI AUTOPLAYER CONTROLLER
   // ==========================================================================
   class Autoplayer {
     constructor(game) {
@@ -113,11 +116,19 @@
       this.enabled = false;
       this.autoRestartOnDeath = true;
       this.target = null;
-      this.currentTargetPlatform = null;
+      this.committedTarget = null;
+      this.committedPlan = null;
       this.autoRestartTimer = null;
-      this.lastDecisionTime = 0;
-      this.consecutiveAirJumps = 0;
-      this.mode = 'PROGRESS'; // 'PROGRESS' | 'RECOVERY' | 'COLLECT'
+      this.lastBouncedY = BASE_ALTITUDE_Y;
+      this.prevLandedY = BASE_ALTITUDE_Y;
+      this.consecutiveStallBounces = 0;
+      this.failedTargetsMap = new Map(); // pId -> timestamp
+      this.recentRejections = [];
+      this.mode = 'PROGRESS'; // 'PROGRESS' | 'RECOVERY'
+      this.isWaypointActive = false;
+      this.lastDesiredTargetX = 240;
+      this.debugMode = false;
+      this._handledBounceThisFrame = false;
     }
 
     enable(autoRestart = true) {
@@ -125,7 +136,6 @@
       this.autoRestartOnDeath = autoRestart;
       this.updateUI();
 
-      // If on menu or gameover, start climb immediately
       if (this.game.currentState === 'MENU' || this.game.currentState === 'GAMEOVER') {
         this.game.startNewGame();
       } else if (this.game.currentState === 'PAUSED') {
@@ -138,7 +148,6 @@
     disable() {
       this.enabled = false;
       this.clearRestartTimer();
-      // Release all controls
       if (this.game && this.game.keys) {
         this.game.keys.left = false;
         this.game.keys.right = false;
@@ -156,6 +165,12 @@
       }
     }
 
+    toggleDebug() {
+      this.debugMode = !this.debugMode;
+      console.log(`🤖 [Autoplayer] Debug Diagnostics: ${this.debugMode ? 'ENABLED' : 'DISABLED'}`);
+      return this.debugMode;
+    }
+
     clearRestartTimer() {
       if (this.autoRestartTimer) {
         clearTimeout(this.autoRestartTimer);
@@ -163,21 +178,534 @@
       }
     }
 
+    onGameStart() {
+      this.consecutiveStallBounces = 0;
+      this.committedTarget = null;
+      this.committedPlan = null;
+      this.lastBouncedY = BASE_ALTITUDE_Y;
+      this.prevLandedY = BASE_ALTITUDE_Y;
+      this.recentLandings = [];
+      this.failedTargetsMap.clear();
+      this.recentRejections = [];
+      this.mode = 'PROGRESS';
+      this.isWaypointActive = false;
+      this.lastDesiredTargetX = 240;
+    }
+
     onGameOver() {
       if (!this.enabled || !this.autoRestartOnDeath) return;
       this.clearRestartTimer();
 
-      // Show auto-restart notice in UI if spectator mode is active
       const notice = document.getElementById('spectatorRestartNotice');
       if (notice) notice.classList.remove('hidden');
 
-      // Schedule automated restart after 1.8 seconds (giving spectator time to view 3-star rating)
       this.autoRestartTimer = setTimeout(() => {
         if (this.enabled && this.game.currentState === 'GAMEOVER') {
           if (notice) notice.classList.add('hidden');
           this.game.startNewGame();
         }
       }, 1800);
+    }
+
+    onBounce(landedPlat) {
+      if (!landedPlat) return;
+      if (this._handledBounceThisFrame) return;
+
+      this._handledBounceThisFrame = true;
+      requestAnimationFrame(() => {
+        this._handledBounceThisFrame = false;
+      });
+
+      const landedY = landedPlat.y;
+      const now = performance.now();
+
+      // Track recent landing history (last 5 landings)
+      if (!this.recentLandings) this.recentLandings = [];
+
+      // Check if we previously landed near this exact height (< 25px height difference)
+      const isRepeatedLanding = this.recentLandings.some(l => Math.abs(l.y - landedY) < 25);
+
+      if (isRepeatedLanding) {
+        this.consecutiveStallBounces++;
+        // Exclude failed target and stalled landing
+        if (this.committedTarget) {
+          this.failedTargetsMap.set('plat_' + Math.round(this.committedTarget.y), now);
+        }
+        this.failedTargetsMap.set('plat_' + Math.round(landedY), now);
+        if (this.debugMode) {
+          console.warn(`⚠️ [AI-STALL] Repeated landing on tier y=${Math.round(landedY)} (Stalls: ${this.consecutiveStallBounces})`);
+        }
+      } else {
+        this.consecutiveStallBounces = 0;
+      }
+
+      this.recentLandings.push({ y: landedY, time: now });
+      if (this.recentLandings.length > 5) {
+        this.recentLandings.shift();
+      }
+
+      this.prevLandedY = this.lastBouncedY;
+      this.lastBouncedY = landedY;
+      this.committedTarget = null;
+      this.committedPlan = null;
+
+      // Immediately evaluate and select the next progressive climb target
+      this.selectOptimalTarget(this.game.ball, this.game.platforms, this.game.cameraY);
+    }
+
+    // --- Trajectory Solver with Exact Quadratic Descent Time ---
+    solveTrajectory(ball, p) {
+      const yLand = p.y - ball.radius;
+      const vy = ball.vy;
+      const y = ball.y;
+
+      let tFlight = 0;
+      let requiresAirJump = false;
+
+      if (y <= yLand) {
+        // Platform is at or below the ball: natural falling arrival
+        const disc = vy * vy + 2 * GRAVITY * (yLand - y);
+        if (disc >= 0) {
+          tFlight = (-vy + Math.sqrt(disc)) / GRAVITY;
+        }
+      } else {
+        // Platform is ABOVE the ball: requires upward momentum or apex air jump
+        const riseApex = (Math.max(0, -vy) ** 2) / (2 * GRAVITY);
+        const yApex = y - riseApex;
+
+        if (yApex <= yLand) {
+          // Natural upward bounce carries ball high enough to land on platform
+          const disc = vy * vy + 2 * GRAVITY * (yLand - y);
+          if (disc >= 0) {
+            tFlight = (-vy + Math.sqrt(disc)) / GRAVITY;
+          }
+        } else if (ball.hasAirJump) {
+          // Current momentum alone does not reach, but apex air jump boosts ball over platform
+          const riseAir = (AIR_JUMP_IMPULSE ** 2) / (2 * GRAVITY);
+          const yPeak = yApex - riseAir;
+
+          if (yPeak <= yLand) {
+            const tToApex = Math.max(0, -vy) / GRAVITY;
+            const discAir = (AIR_JUMP_IMPULSE ** 2) + 2 * GRAVITY * (yLand - yApex);
+            if (discAir >= 0) {
+              const tFromApex = (-AIR_JUMP_IMPULSE + Math.sqrt(discAir)) / GRAVITY;
+              tFlight = tToApex + tFromApex;
+              requiresAirJump = true;
+            }
+          }
+        }
+      }
+
+      const pId = 'plat_' + Math.round(p.y);
+
+      if (tFlight <= 0.02) {
+        return { valid: false, reason: 'Already passed or arrival time too small', pId };
+      }
+
+      // Predict moving platform position at arrival time
+      const proj = predictPlatformAtTime(p, tFlight);
+      const safe = getPlatformSafeRange(p, proj.x);
+
+      // Safe landing zone must be wide enough
+      if (safe.width < 22) {
+        return { valid: false, reason: `Safe zone too narrow (${Math.round(safe.width)}px < 22px)`, pId };
+      }
+
+      // Check horizontal reachability
+      const requiredDist = Math.abs(safe.center - ball.x);
+      const maxSteerDist = MAX_SPEED_X * tFlight + 60;
+      if (requiredDist > maxSteerDist) {
+        return { valid: false, reason: `Horizontally unreachable (dist ${Math.round(requiredDist)} > max ${Math.round(maxSteerDist)})`, pId };
+      }
+
+      return {
+        valid: true,
+        platform: p,
+        flightTime: tFlight,
+        projectedX: proj.x,
+        safeRange: safe,
+        targetX: safe.center,
+        requiresAirJump,
+        distX: requiredDist,
+        pId,
+      };
+    }
+
+    // --- Progress-Aware Candidate Evaluation & Target Selection ---
+    selectOptimalTarget(ball, platforms, cameraY) {
+      if (!platforms || platforms.length === 0) return null;
+
+      const active = platforms.filter(p => p.y <= cameraY + CANVAS_HEIGHT + 40 && p.y >= cameraY - 480);
+      const progressive = [];
+      const recovery = [];
+      const rejections = [];
+      const now = performance.now();
+
+      for (let i = 0; i < active.length; i++) {
+        const p = active[i];
+        const plan = this.solveTrajectory(ball, p);
+        if (!plan.valid) {
+          rejections.push({ pId: plan.pId, y: Math.round(p.y), reason: plan.reason });
+          continue;
+        }
+
+        const deltaH = this.lastBouncedY - p.y;
+        const isFailed = this.failedTargetsMap.has(plan.pId) && (now - this.failedTargetsMap.get(plan.pId) < 4000);
+
+        if (deltaH > 35) {
+          // --- PROGRESSIVE CANDIDATE (Climbing higher) ---
+          let score = 1000;
+          if (deltaH >= 80 && deltaH <= 210) {
+            score += 900; // Immediate next climb tier gets top priority
+          } else if (deltaH > 210) {
+            score += 350; // Higher climb tier
+          }
+
+          if (!plan.requiresAirJump) score += 450; // Conserve air jump for safety
+          score += plan.safeRange.width * 1.6;
+          if (plan.safeRange.hasSpike) score -= 220; // Penalize spike presence
+          score -= plan.distX * 1.3; // Prefer closer horizontal steering
+          if (p.vx !== 0) score -= 25; // Slight stationary stability preference
+          if (isFailed) score -= 1400; // Strong penalty for recently stalled platform
+
+          plan.score = score;
+          plan.deltaH = deltaH;
+          progressive.push(plan);
+        } else {
+          // --- RECOVERY CANDIDATE (Safe lower landing when higher is impossible) ---
+          let score = -500;
+          score += (CANVAS_HEIGHT + cameraY - p.y) * 1.2;
+          score += plan.safeRange.width * 1.0;
+          if (plan.safeRange.hasSpike) score -= 200;
+          score -= plan.distX * 0.9;
+          if (isFailed) score -= 400;
+
+          plan.score = score;
+          plan.deltaH = deltaH;
+          recovery.push(plan);
+        }
+      }
+
+      progressive.sort((a, b) => b.score - a.score);
+      recovery.sort((a, b) => b.score - a.score);
+
+      const best = progressive.length > 0 ? progressive[0] : (recovery.length > 0 ? recovery[0] : null);
+      this.recentRejections = rejections.slice(-6);
+
+      if (best) {
+        const isNewTarget = !this.committedTarget || this.committedTarget !== best.platform;
+        this.committedTarget = best.platform;
+        this.committedPlan = best;
+        this.mode = progressive.length > 0 ? 'PROGRESS' : 'RECOVERY';
+        if (this.debugMode && isNewTarget) {
+          console.log(`🎯 [AI-TARGET] Selected ${best.pId} (y=${Math.round(best.platform.y)}, DeltaH=${Math.round(best.deltaH)}px, AirJump=${best.requiresAirJump})`);
+        }
+      }
+
+      return best;
+    }
+
+    // --- Main AI Decision Step (Invoked Every Physics Frame) ---
+    update(dt) {
+      if (!this.enabled || this.game.currentState !== 'PLAYING') {
+        return;
+      }
+
+      const ball = this.game.ball;
+      const platforms = this.game.platforms;
+      const cameraY = this.game.cameraY;
+
+      // Keep target commitment during flight until reached, invalidated, or fallen past
+      const hasMissedTarget = this.committedTarget && ball.vy > 100 && ball.y > this.committedTarget.y + 60;
+      const isTargetValid = this.committedTarget &&
+        platforms.includes(this.committedTarget) &&
+        this.committedTarget.y <= cameraY + CANVAS_HEIGHT + 40 &&
+        !hasMissedTarget;
+
+      if (!isTargetValid) {
+        this.selectOptimalTarget(ball, platforms, cameraY);
+      } else {
+        // Continuously update dynamic landing projection for committed target
+        const p = this.committedTarget;
+        const yLand = p.y - ball.radius;
+        let tRem = 0;
+
+        if (ball.y <= yLand) {
+          const disc = ball.vy * ball.vy + 2 * GRAVITY * (yLand - ball.y);
+          tRem = disc >= 0 ? (-ball.vy + Math.sqrt(disc)) / GRAVITY : 0.05;
+        } else {
+          const riseApex = (Math.max(0, -ball.vy) ** 2) / (2 * GRAVITY);
+          const yApex = ball.y - riseApex;
+          if (yApex <= yLand) {
+            const disc = ball.vy * ball.vy + 2 * GRAVITY * (yLand - ball.y);
+            tRem = disc >= 0 ? (-ball.vy + Math.sqrt(disc)) / GRAVITY : 0.1;
+          } else {
+            tRem = (Math.max(0, -ball.vy) / GRAVITY) + 0.35;
+          }
+        }
+
+        const proj = predictPlatformAtTime(p, tRem);
+        const safe = getPlatformSafeRange(p, proj.x);
+        this.committedPlan = {
+          valid: true,
+          platform: p,
+          flightTime: tRem,
+          projectedX: proj.x,
+          safeRange: safe,
+          targetX: safe.center,
+          requiresAirJump: this.committedPlan ? this.committedPlan.requiresAirJump : false,
+          pId: 'plat_' + Math.round(p.y),
+        };
+      }
+
+      this.target = this.committedPlan;
+
+      // 1. Air Jump Tactical Deployment
+      this.evaluateAirJump(ball, this.committedPlan);
+
+      // 2. Waypoint & Horizontal Steering
+      this.executeSteering(ball, this.committedPlan, dt);
+
+      // 3. Safe Collectible Detour Check
+      if (!this.isWaypointActive) {
+        this.evaluateCollectibleDetour(ball, this.game.collectibles || [], this.game.specialStars || [], this.committedPlan);
+      }
+    }
+
+    // --- Waypoint Navigation & Horizontal Steering ---
+    executeSteering(ball, plan, dt) {
+      if (!plan || !plan.platform) {
+        this.game.keys.left = false;
+        this.game.keys.right = false;
+        this.game.keys.down = false;
+        return;
+      }
+
+      const safe = plan.safeRange;
+      const targetPlat = plan.platform;
+      const platforms = this.game.platforms || [];
+
+      // 1. SPIKE HAZARD IMMEDIATE REPULSION
+      for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
+        if (!p.spike) continue;
+        const sLeft = (p.spike.side === 'left') ? p.x + 4 : p.x + p.width - p.spike.width - 4;
+        const sRight = sLeft + p.spike.width;
+        const sTop = p.y - p.spike.height;
+
+        if (ball.y >= sTop - 35 && ball.y <= p.y + 10 && ball.x >= sLeft - 18 && ball.x <= sRight + 18) {
+          if (p.spike.side === 'left') {
+            this.game.keys.right = true;
+            this.game.keys.left = false;
+            return;
+          } else {
+            this.game.keys.left = true;
+            this.game.keys.right = false;
+            return;
+          }
+        }
+      }
+
+      // 2. ASCENT WAYPOINT (UNDERSIDE CEILING EVASION)
+      // When ball is below the target platform, it must navigate around the platform edges
+      // to avoid bumping its head on the solid underside!
+      let desiredTargetX = safe.center;
+      this.isWaypointActive = false;
+
+      if (ball.y > targetPlat.y + 4) {
+        this.isWaypointActive = true;
+        const curLeft = targetPlat.x - 20;
+        const curRight = targetPlat.x + targetPlat.width + 20;
+
+        if (ball.x < curLeft) {
+          // Ball is already clear on the left side: stay clear of the platform footprint
+          desiredTargetX = Math.max(20, curLeft - 14);
+        } else if (ball.x > curRight) {
+          // Ball is already clear on the right side: stay clear of the platform footprint
+          desiredTargetX = Math.min(CANVAS_WIDTH - 20, curRight + 14);
+        } else {
+          // Ball is directly underneath: steer urgently to the closest open side
+          const leftSpace = curLeft;
+          const rightSpace = CANVAS_WIDTH - curRight;
+
+          if (leftSpace >= 50 && (ball.x - curLeft < curRight - ball.x || rightSpace < 50)) {
+            desiredTargetX = Math.max(20, curLeft - 16);
+          } else {
+            desiredTargetX = Math.min(CANVAS_WIDTH - 20, curRight + 16);
+          }
+        }
+      }
+
+      this.lastDesiredTargetX = desiredTargetX;
+
+      // 3. PROPORTIONAL-DERIVATIVE STEERING WITH DEADBAND
+      const errorX = desiredTargetX - ball.x;
+      const vx = ball.vx;
+
+      const Kp = 6.2;
+      const targetVx = Math.max(-MAX_SPEED_X, Math.min(MAX_SPEED_X, errorX * Kp));
+      const vDiff = targetVx - vx;
+
+      const deadband = 10;
+      if (vDiff > deadband) {
+        this.game.keys.right = true;
+        this.game.keys.left = false;
+      } else if (vDiff < -deadband) {
+        this.game.keys.left = true;
+        this.game.keys.right = false;
+      } else {
+        // Coast cleanly within deadband without edge jitter
+        this.game.keys.left = false;
+        this.game.keys.right = false;
+      }
+
+      // 4. FAST-FALL DIVE
+      // Dive downward when safely aligned directly over a generous platform without hazards
+      if (!this.isWaypointActive && plan.platform && !plan.safeRange.hasSpike && ball.vy > 100) {
+        const dy = plan.platform.y - ball.y;
+        if (Math.abs(errorX) < 14 && dy > 70 && dy < 220) {
+          this.game.keys.down = true;
+        } else {
+          this.game.keys.down = false;
+        }
+      } else {
+        this.game.keys.down = false;
+      }
+    }
+
+    // --- Smart Air Jump Decision Engine ---
+    evaluateAirJump(ball, plan) {
+      if (!ball.hasAirJump) return;
+
+      // Rule 1: Planned Apex Boost for Higher Progressive Tier
+      if (plan && plan.requiresAirJump) {
+        if (ball.vy >= -50 && ball.vy <= 80) {
+          if (this.debugMode) {
+            console.log(`🚀 [AI-JUMP] Planned apex boost deployed for ${plan.pId}`);
+          }
+          this.game.handleAirJump();
+          return;
+        }
+      }
+
+      // Rule 2: Stall Breakout Apex Jump
+      // When trapped on the same tier, deploy air jump near apex to break out!
+      if (this.consecutiveStallBounces >= 1 && ball.vy >= -50 && ball.vy <= 80) {
+        if (this.debugMode) {
+          console.log(`⚡ [AI-JUMP] Stall breakout apex jump deployed (Stalls: ${this.consecutiveStallBounces})`);
+        }
+        this.game.handleAirJump();
+        return;
+      }
+
+      // Rule 3: Emergency Void Catch (Carefully Gated)
+      // Only fire if falling fast near screen bottom AND not already landing on an aligned platform!
+      const screenBallY = ball.y - this.game.cameraY;
+      if (ball.vy > 200 && screenBallY > CANVAS_HEIGHT - 95) {
+        let isSafeLandingImminent = false;
+        if (plan && plan.platform && ball.y < plan.platform.y) {
+          const dy = plan.platform.y - ball.y;
+          const isAligned = ball.x >= plan.safeRange.left - 15 && ball.x <= plan.safeRange.right + 15;
+          if (dy < 110 && isAligned) {
+            isSafeLandingImminent = true;
+          }
+        }
+
+        if (!isSafeLandingImminent) {
+          if (this.debugMode) {
+            console.log('🛟 [AI-JUMP] Emergency void catch jump deployed');
+          }
+          this.game.handleAirJump();
+        }
+      }
+    }
+
+    // --- Safe Collectible Detour Check ---
+    evaluateCollectibleDetour(ball, orbs, stars, plan) {
+      if (!plan || !plan.platform) return;
+
+      const allCollectibles = [
+        ...stars.map(s => ({ item: s, type: 'star' })),
+        ...orbs.map(o => ({ item: o, type: 'orb' })),
+      ];
+
+      for (let i = 0; i < allCollectibles.length; i++) {
+        const { item } = allCollectibles[i];
+        if (item.collected) continue;
+
+        const itemY = item.getVisualY ? item.getVisualY() : item.y;
+        const dy = itemY - ball.y;
+
+        if (Math.abs(dy) < 100) {
+          const dx = item.x - ball.x;
+          if (Math.abs(dx) <= 50) {
+            const futureX = ball.x + dx;
+            if (futureX >= plan.safeRange.left && futureX <= plan.safeRange.right) {
+              plan.targetX = item.x;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // --- Diagnostic Snapshot ---
+    getDiagnostics() {
+      const plan = this.committedPlan;
+      return {
+        targetId: plan ? plan.pId : 'none',
+        targetHeight: plan && plan.platform ? Math.round(plan.platform.y) : null,
+        predictedLandingX: plan ? Math.round(plan.targetX * 10) / 10 : null,
+        currentHeight: this.game.score,
+        maxHeight: this.game.maxAltitude,
+        consecutiveStallBounces: this.consecutiveStallBounces,
+        rejectionReasons: this.recentRejections.slice(-5),
+        airJumpAvailable: Boolean(this.game.ball && this.game.ball.hasAirJump),
+        mode: this.mode,
+        waypointActive: this.isWaypointActive,
+        desiredTargetX: Math.round(this.lastDesiredTargetX),
+      };
+    }
+
+    // --- Visual Diagnostics Overlay ---
+    renderDiagnostics(ctx) {
+      if (!this.debugMode) return;
+
+      const d = this.getDiagnostics();
+      const pad = 12;
+      const boxW = 270;
+      const boxH = 145;
+      const x = 12;
+      const y = 62;
+
+      ctx.save();
+      ctx.fillStyle = 'rgba(6, 11, 25, 0.90)';
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.roundRect(x, y, boxW, boxH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 11px monospace';
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillText('🤖 AI AUTOPLAYER DIAGNOSTICS', x + pad, y + 18);
+
+      ctx.font = '10px monospace';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.fillText(`Target: ${d.targetId} (y=${d.targetHeight})`, x + pad, y + 36);
+      ctx.fillText(`Pred Landing X: ${d.predictedLandingX}px`, x + pad, y + 50);
+      ctx.fillText(`Alt / Max Alt: ${d.currentHeight}m / ${d.maxHeight}m`, x + pad, y + 64);
+      ctx.fillText(`Air Jump Available: ${d.airJumpAvailable ? 'YES' : 'NO'}`, x + pad, y + 78);
+      ctx.fillText(`Stall Count: ${d.consecutiveStallBounces} (Mode: ${d.mode})`, x + pad, y + 92);
+      ctx.fillText(`Waypoint: ${d.waypointActive ? 'ACTIVE (EVADING)' : 'DIRECT'}`, x + pad, y + 106);
+
+      if (d.rejectionReasons && d.rejectionReasons.length > 0) {
+        const lastRej = d.rejectionReasons[d.rejectionReasons.length - 1];
+        ctx.fillStyle = '#f43f5e';
+        ctx.fillText(`Rej: ${lastRej.pId} - ${lastRej.reason.slice(0, 24)}`, x + pad, y + 124);
+      }
+      ctx.restore();
     }
 
     updateUI() {
@@ -192,271 +720,6 @@
       const spectateBtn = document.getElementById('aiSpectateBtn');
       if (spectateBtn) {
         spectateBtn.classList.toggle('btn-active', this.enabled);
-      }
-    }
-
-    // --- Main AI Decision Step (Invoked Every Physics Frame) ---
-    update(dt) {
-      if (!this.enabled || this.game.currentState !== 'PLAYING') {
-        return;
-      }
-
-      const ball = this.game.ball;
-      const platforms = this.game.platforms;
-      const collectibles = this.game.collectibles || [];
-      const specialStars = this.game.specialStars || [];
-      const cameraY = this.game.cameraY;
-
-      // 1. Analyze and pick optimal target platform
-      const bestPlan = this.evaluatePlan(ball, platforms, cameraY);
-      this.target = bestPlan;
-
-      // 2. Evaluate Air Jump Tactical Deployment
-      this.evaluateAirJump(ball, bestPlan);
-
-      // 3. Proportional Steering Controller
-      this.executeSteering(ball, bestPlan, dt);
-
-      // 4. Safe Collectible Detour Check
-      this.evaluateCollectibleDetour(ball, collectibles, specialStars, bestPlan);
-    }
-
-    // --- Evaluate Reachable Platforms & Select Best Landing Target ---
-    evaluatePlan(ball, platforms, cameraY) {
-      if (!platforms || platforms.length === 0) {
-        return { targetX: ball.x, isSafe: false, platform: null };
-      }
-
-      // Filter visible / upcoming platforms
-      const activePlatforms = platforms.filter(p => {
-        return p.y <= cameraY + CANVAS_HEIGHT + 60 && p.y >= cameraY - 450;
-      });
-
-      let bestTarget = null;
-      let highestScore = -Infinity;
-
-      for (let i = 0; i < activePlatforms.length; i++) {
-        const p = activePlatforms[i];
-        const dy = p.y - ball.y; // Positive = below ball, Negative = above ball
-
-        // Flight time calculation:
-        let tFlight = 0;
-        let isReachableVertically = false;
-
-        if (dy >= 0) {
-          // Platform is below the ball: Ball will land as it falls
-          // Solve: ball.y + vy * t + 0.5 * g * t^2 = p.y
-          const discriminant = ball.vy * ball.vy + 2 * GRAVITY * dy;
-          if (discriminant >= 0) {
-            tFlight = (-ball.vy + Math.sqrt(discriminant)) / GRAVITY;
-            isReachableVertically = tFlight > 0;
-          }
-        } else {
-          // Platform is ABOVE the ball: Can ball reach it with current velocity or air jump?
-          const apexLift = (Math.max(0, -ball.vy) ** 2) / (2 * GRAVITY);
-          const airJumpLift = ball.hasAirJump ? ((-AIR_JUMP_IMPULSE) ** 2) / (2 * GRAVITY) : 0;
-          const totalReachUp = apexLift + airJumpLift;
-
-          if (Math.abs(dy) <= totalReachUp + 18) {
-            isReachableVertically = true;
-            tFlight = Math.max(0, -ball.vy) / GRAVITY + 0.15;
-          }
-        }
-
-        if (!isReachableVertically) continue;
-
-        // Predict where moving platform will be at arrival time
-        const proj = predictPlatformAtTime(p, tFlight);
-        const safe = getPlatformSafeRange(p, proj.x);
-
-        // Safe landing zone must be wide enough
-        if (safe.width < 26) continue;
-
-        // Check horizontal reachability
-        const requiredDist = Math.abs(safe.center - ball.x);
-        const maxSteerDist = MAX_SPEED_X * tFlight + 45;
-        const isHorizontallyReachable = requiredDist <= maxSteerDist;
-
-        if (!isHorizontallyReachable) continue;
-
-        // --- Utility Scoring Function ---
-        let score = 0;
-
-        // 1. Height progress bonus (reward climbing higher)
-        const altitudeProgress = (cameraY + CANVAS_HEIGHT - p.y);
-        score += altitudeProgress * 1.8;
-
-        // 2. Wide landing surface bonus
-        score += safe.width * 1.5;
-
-        // 3. Hazard safety penalty
-        if (safe.hasSpike) {
-          score -= 120; // Penalize platforms with spikes, but allow if best choice
-        }
-
-        // 4. Moving platform stability adjustment
-        if (p.vx !== 0) {
-          score -= 30; // Slight preference for stationary platforms for stability
-        }
-
-        // 5. Proximity bonus (less extreme steering required)
-        score -= requiredDist * 0.8;
-
-        // 6. Urgency bonus if ball is descending rapidly
-        if (ball.vy > 180 && dy > 0 && dy < 320) {
-          score += 250; // Prioritize landing immediately over climbing
-        }
-
-        if (score > highestScore) {
-          highestScore = score;
-          bestTarget = {
-            platform: p,
-            safeRange: safe,
-            targetX: safe.center,
-            flightTime: tFlight,
-            projectedX: proj.x,
-            isAbove: dy < 0,
-            distY: dy,
-          };
-        }
-      }
-
-      // Fallback: If no candidate platform found, steer towards canvas center
-      if (!bestTarget) {
-        return {
-          targetX: CANVAS_WIDTH * 0.5,
-          isSafe: false,
-          platform: null,
-          safeRange: { left: 100, right: 380, center: CANVAS_WIDTH * 0.5 },
-        };
-      }
-
-      return bestTarget;
-    }
-
-    // --- Smart Air Jump Decision ---
-    evaluateAirJump(ball, plan) {
-      if (!ball.hasAirJump) return;
-
-      // Rule 1: Ascent Extension (Apex Boost)
-      // When ball has climbed near upward apex and needs extra boost to reach upper target
-      if (plan && plan.isAbove && ball.vy >= -40 && ball.vy <= 100) {
-        const distNeeded = Math.abs(plan.distY);
-        if (distNeeded > 30 && distNeeded < 260) {
-          this.game.handleAirJump();
-          return;
-        }
-      }
-
-      // Rule 2: Emergency Descent Catch
-      // When ball is falling fast and no safe platform is immediately beneath
-      if (ball.vy > 250) {
-        // If below all upper platforms and either target is far or about to fall into void
-        const screenBallY = ball.y - this.game.cameraY;
-        if (screenBallY > CANVAS_HEIGHT - 160 || (!plan.platform && screenBallY > 380)) {
-          this.game.handleAirJump();
-          return;
-        }
-      }
-    }
-
-    // --- Proportional-Derivative (PD) Horizontal Steering ---
-    executeSteering(ball, plan, dt) {
-      if (!plan) return;
-
-      let desiredX = plan.targetX;
-
-      // Emergency Spike Repulsion:
-      // Check if current trajectory is dangerously close to any spike
-      const platforms = this.game.platforms || [];
-      for (let i = 0; i < platforms.length; i++) {
-        const p = platforms[i];
-        if (!p.spike) continue;
-
-        const sLeft = (p.spike.side === 'left') ? p.x + 4 : p.x + p.width - p.spike.width - 4;
-        const sRight = sLeft + p.spike.width;
-        const sTop = p.y - p.spike.height;
-
-        // If ball is within danger zone of spike
-        if (ball.y >= sTop - 35 && ball.y <= p.y + 10) {
-          if (ball.x >= sLeft - 18 && ball.x <= sRight + 18) {
-            // Apply emergency repulsion away from the spike side!
-            if (p.spike.side === 'left') {
-              desiredX = Math.max(desiredX, sRight + 25);
-            } else {
-              desiredX = Math.min(desiredX, sLeft - 25);
-            }
-          }
-        }
-      }
-
-      // Proportional error
-      const errorX = desiredX - ball.x;
-
-      // Target velocity with damping
-      const Kp = 7.5;
-      const targetVx = Math.max(-MAX_SPEED_X, Math.min(MAX_SPEED_X, errorX * Kp));
-
-      // Velocity difference
-      const vDiff = targetVx - ball.vx;
-
-      const deadband = 8;
-      if (vDiff > deadband) {
-        this.game.keys.right = true;
-        this.game.keys.left = false;
-      } else if (vDiff < -deadband) {
-        this.game.keys.left = true;
-        this.game.keys.right = false;
-      } else {
-        // Within deadband: glide smoothly
-        this.game.keys.left = false;
-        this.game.keys.right = false;
-      }
-
-      // Fast-fall dive:
-      // If securely centered above a generous safe landing platform and falling safely
-      if (plan.platform && !plan.safeRange.hasSpike && ball.vy > 100) {
-        if (Math.abs(errorX) < 14 && plan.distY > 80 && plan.distY < 240) {
-          this.game.keys.down = true;
-        } else {
-          this.game.keys.down = false;
-        }
-      } else {
-        this.game.keys.down = false;
-      }
-    }
-
-    // --- Safe Collectible Detour ---
-    evaluateCollectibleDetour(ball, orbs, stars, plan) {
-      if (!plan || !plan.platform) return;
-
-      // Prioritize special stars over energy orbs
-      const allCollectibles = [
-        ...stars.map(s => ({ item: s, type: 'star', weight: 2.5 })),
-        ...orbs.map(o => ({ item: o, type: 'orb', weight: 1.0 })),
-      ];
-
-      for (let i = 0; i < allCollectibles.length; i++) {
-        const { item, type, weight } = allCollectibles[i];
-        if (item.collected) continue;
-
-        const itemY = item.getVisualY ? item.getVisualY() : item.y;
-        const dy = itemY - ball.y;
-
-        // Only consider items reachable on current ascent or gentle descent
-        if (Math.abs(dy) < 120) {
-          const dx = item.x - ball.x;
-          // Item must be within a safe horizontal window (<= 65px deviation)
-          if (Math.abs(dx) <= 65) {
-            // Check that deviating toward item doesn't make ball miss safe platform
-            const futureX = ball.x + dx;
-            if (futureX >= plan.safeRange.left && futureX <= plan.safeRange.right) {
-              // Safe detour! Adjust steering target toward collectible
-              plan.targetX = item.x;
-              break;
-            }
-          }
-        }
       }
     }
   }
@@ -916,6 +1179,22 @@ ${this.logs.slice(-25).join('\n')}
     game.autoplayer = autoplayer;
     game.auditManager = auditManager;
 
+    // Safety fallback hook: Ensure onBounce is processed if game.ball bounces
+    if (game.ball && game.ball.triggerBounce) {
+      const origTriggerBounce = game.ball.triggerBounce;
+      game.ball.triggerBounce = function () {
+        const res = origTriggerBounce.apply(this, arguments);
+        if (autoplayer.enabled && !autoplayer._handledBounceThisFrame) {
+          const plats = game.platforms || [];
+          const landedPlat = plats.find(p => Math.abs(p.y - game.ball.y - game.ball.radius) < 10);
+          if (landedPlat) {
+            autoplayer.onBounce(landedPlat);
+          }
+        }
+        return res;
+      };
+    }
+
     // --- Button Bindings ---
 
     // 1. Menu AI Spectator button
@@ -1006,12 +1285,14 @@ ${this.logs.slice(-25).join('\n')}
       });
     }
 
-    // 9. Keyboard Shortcuts: 'B' toggles Spectator, 'T' opens Audit Modal
+    // 9. Keyboard Shortcuts: 'B' toggles Spectator, 'D' toggles Diagnostics, 'T' opens Audit Modal
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
 
       if (e.code === 'KeyB') {
         autoplayer.toggle();
+      } else if (e.code === 'KeyD') {
+        autoplayer.toggleDebug();
       } else if (e.code === 'KeyT') {
         if (auditModal) {
           auditModal.classList.toggle('hidden');

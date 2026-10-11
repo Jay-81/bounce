@@ -1519,6 +1519,10 @@
       // Generate initial buffer of platforms above Tier 2
       this.generatePlatformsAhead();
 
+      if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.onGameStart) {
+        this.autoplayer.onGameStart();
+      }
+
       this.updateScoreDisplays();
       this.setGameState(STATE.PLAYING);
     }
@@ -2105,6 +2109,9 @@
             // Trigger automatic upward bounce and reset air jump!
             this.ball.triggerBounce();
             p.triggerImpact();
+            if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.onBounce) {
+              this.autoplayer.onBounce(p);
+            }
             this.particles.spawnBounceSparks(this.ball.x, platTop, this.themeManager.getColors());
             this.sound.playBounce();
             break;
@@ -2268,6 +2275,11 @@
       }
 
       this.ctx.restore();
+
+      // AI Diagnostics Overlay (Active only when Autoplayer Debug Mode is enabled)
+      if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.debugMode && this.autoplayer.renderDiagnostics) {
+        this.autoplayer.renderDiagnostics(this.ctx);
+      }
     }
 
     // --- Main Loop ---
