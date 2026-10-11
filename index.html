@@ -14,8 +14,13 @@
   <div class="game-wrapper">
     <!-- Header with game title and badges -->
     <header class="game-header">
-      <h1 class="brand-title">BOUNCE</h1>
-      <div class="version-badge">v2.0 Endless</div>
+      <div class="header-left">
+        <h1 class="brand-title">BOUNCE</h1>
+        <div class="version-badge">v2.0 Endless</div>
+      </div>
+      <div class="header-actions">
+        <button class="header-btn" id="headerAuditBtn" title="Automated Audit Suite (T)">📊 AUDIT</button>
+      </div>
     </header>
 
     <!-- Main Game Container -->
@@ -58,6 +63,9 @@
 
         <!-- Action Controls (Sound & Pause) -->
         <div class="hud-actions-group">
+          <button class="icon-btn ai-toggle-btn" id="aiHudToggleBtn" title="Toggle AI Spectator Mode (B)" aria-label="Toggle AI Spectator">
+            <span class="hud-robot-icon">🤖</span>
+          </button>
           <button class="icon-btn" id="soundBtn" title="Toggle Sound (M)" aria-label="Toggle Sound">
             <!-- Audio ON icon -->
             <svg class="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
@@ -75,6 +83,13 @@
             </svg>
           </button>
         </div>
+      </div>
+
+      <!-- Floating Spectator Mode Indicator Badge -->
+      <div class="spectator-badge hidden" id="spectatorBadge">
+        <span class="badge-pulse-dot"></span>
+        <span class="badge-text">SPECTATOR: AI PLAYING</span>
+        <button class="badge-stop-btn" id="stopAiBtn" title="Stop Spectator Mode">STOP</button>
       </div>
 
       <!-- Level Milestone Notification Banner -->
@@ -127,10 +142,20 @@
             </div>
           </div>
 
-          <button class="neon-btn primary-neon-btn" id="playBtn">
-            <span>START CLIMB</span>
-            <div class="btn-glow"></div>
-          </button>
+          <div class="menu-btn-group">
+            <button class="neon-btn primary-neon-btn" id="playBtn">
+              <span>START CLIMB</span>
+              <div class="btn-glow"></div>
+            </button>
+            <div class="menu-secondary-row">
+              <button class="neon-btn ai-spectate-btn" id="aiSpectateBtn" title="Watch AI play automatically (B)">
+                <span>🤖 AI SPECTATOR</span>
+              </button>
+              <button class="neon-btn audit-open-btn" id="auditOpenBtn" title="Open Automated Gameplay Audit Suite (T)">
+                <span>📊 AUDIT SUITE</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -216,6 +241,10 @@
             <div class="new-best-tag hidden" id="newBestTag">★ NEW RECORD ALTITUDE! ★</div>
           </div>
 
+          <div class="spectator-restart-notice hidden" id="spectatorRestartNotice">
+            🤖 AI Spectator active — Next run starting in 2s...
+          </div>
+
           <div class="results-actions">
             <button class="neon-btn primary-neon-btn" id="restartBtn">
               <span>CLIMB AGAIN</span>
@@ -223,6 +252,143 @@
             </button>
             <button class="neon-btn secondary-neon-btn" id="menuReturnBtn">
               <span>MAIN MENU</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Automated Gameplay Audit & Diagnostics Modal -->
+    <div class="modal-overlay hidden" id="auditModal">
+      <div class="audit-modal-content">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <span class="modal-badge">AUTOMATED DIAGNOSTICS</span>
+            <h2 class="modal-title">Gameplay Audit Suite</h2>
+          </div>
+          <button class="modal-close-btn" id="auditCloseBtn" aria-label="Close Audit Modal">&times;</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Configuration Settings Card -->
+          <div class="audit-config-card">
+            <h3 class="card-section-title">TEST RUN BOUNDS &amp; SAFE PROFILE</h3>
+            <div class="config-grid">
+              <div class="config-field">
+                <label for="auditTargetLevel">Target Level Goal</label>
+                <select id="auditTargetLevel" class="config-select">
+                  <option value="2">Level 2 (Early climb)</option>
+                  <option value="3" selected>Level 3 (Mid climb, spikes active)</option>
+                  <option value="5">Level 5 (High difficulty)</option>
+                  <option value="10">Level 10 (Endurance test)</option>
+                </select>
+              </div>
+              <div class="config-field">
+                <label for="auditMaxDuration">Max Duration</label>
+                <select id="auditMaxDuration" class="config-select">
+                  <option value="30">30 seconds</option>
+                  <option value="60" selected>60 seconds</option>
+                  <option value="120">120 seconds</option>
+                  <option value="300">300 seconds (5 min)</option>
+                </select>
+              </div>
+              <div class="config-field">
+                <label for="auditMaxAttempts">Max Attempts / Deaths</label>
+                <select id="auditMaxAttempts" class="config-select">
+                  <option value="2">2 attempts</option>
+                  <option value="3" selected>3 attempts</option>
+                  <option value="5">5 attempts</option>
+                  <option value="10">10 attempts</option>
+                </select>
+              </div>
+              <div class="config-field checkbox-field">
+                <label class="checkbox-label" for="auditSafeProfile">
+                  <input type="checkbox" id="auditSafeProfile" checked>
+                  <span>Safe Profile (Protect personal records)</span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Invariant Health Status Pills -->
+          <div class="audit-invariants-card">
+            <h3 class="card-section-title">PHYSICS &amp; GAMEPLAY INVARIANTS</h3>
+            <div class="invariants-grid">
+              <div class="inv-pill" id="invPhysicsPill" title="Checks if x, y, vx, vy, and camera are finite real numbers">
+                <span class="inv-icon">✓</span>
+                <span class="inv-name">Finite Physics</span>
+              </div>
+              <div class="inv-pill" id="invPlatformsPill" title="Checks that all vertical platform gaps are &le; 185px">
+                <span class="inv-icon">✓</span>
+                <span class="inv-name">Platform Gaps</span>
+              </div>
+              <div class="inv-pill" id="invHazardsPill" title="Checks that spikes and collectibles never improperly overlap">
+                <span class="inv-icon">✓</span>
+                <span class="inv-name">Hazard Spacing</span>
+              </div>
+              <div class="inv-pill" id="invLifecyclePill" title="Checks single-award collectible integrity">
+                <span class="inv-icon">✓</span>
+                <span class="inv-name">Single Award</span>
+              </div>
+              <div class="inv-pill" id="invLoopPill" title="Monitors animation loop health and steady RAF execution">
+                <span class="inv-icon">✓</span>
+                <span class="inv-name">Loop Continuity</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Metrics Grid -->
+          <div class="audit-metrics-card">
+            <div class="metrics-grid">
+              <div class="metric-item">
+                <span class="metric-label">STATUS</span>
+                <span class="metric-val" id="auditStatusVal">IDLE</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">MAX LEVEL</span>
+                <span class="metric-val gold-accent" id="auditMaxLvlVal">1</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">MAX ALTITUDE</span>
+                <span class="metric-val cyan-accent" id="auditMaxAltVal">0</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">ORBS COLLECTED</span>
+                <span class="metric-val cyan-accent" id="auditOrbsVal">0</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">STARS COLLECTED</span>
+                <span class="metric-val star-accent" id="auditStarsVal">0</span>
+              </div>
+              <div class="metric-item">
+                <span class="metric-label">TOTAL DEATHS</span>
+                <span class="metric-val" id="auditDeathsVal">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diagnostic Event Log Terminal -->
+          <div class="audit-log-card">
+            <h3 class="card-section-title">DIAGNOSTIC EVENT LOG</h3>
+            <div class="audit-terminal">
+              <pre class="audit-terminal-pre" id="auditLogOutput">[System] Audit suite ready. Configure parameters and click 'Start Bounded Audit'.</pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Action Footer -->
+        <div class="modal-footer">
+          <div class="footer-left">
+            <button class="modal-btn secondary-btn" id="auditCopyReportBtn">
+              <span>📋 COPY MARKDOWN REPORT</span>
+            </button>
+          </div>
+          <div class="footer-right">
+            <button class="modal-btn stop-btn hidden" id="auditStopBtn">
+              <span>⏹ STOP AUDIT</span>
+            </button>
+            <button class="modal-btn primary-btn" id="auditStartBtn">
+              <span>▶ START BOUNDED AUDIT</span>
             </button>
           </div>
         </div>
@@ -243,10 +409,11 @@
 
     <!-- Footer with instructions -->
     <footer class="game-footer">
-      <p>Controls: <kbd>A</kbd><kbd>D</kbd> or <kbd>&larr;</kbd><kbd>&rarr;</kbd> Move | <kbd>W</kbd> or <kbd>&uarr;</kbd> Air Jump (1x) | <kbd>S</kbd> or <kbd>&darr;</kbd> Dive | <kbd>M</kbd> Mute | <kbd>Esc</kbd> Pause</p>
+      <p>Controls: <kbd>A</kbd><kbd>D</kbd> or <kbd>&larr;</kbd><kbd>&rarr;</kbd> Move | <kbd>W</kbd> or <kbd>&uarr;</kbd> Air Jump | <kbd>S</kbd> or <kbd>&darr;</kbd> Dive | <kbd>B</kbd> AI Spectator | <kbd>T</kbd> Audit Suite | <kbd>M</kbd> Mute | <kbd>Esc</kbd> Pause</p>
     </footer>
   </div>
 
   <script src="game.js"></script>
+  <script src="autoplayer.js"></script>
 </body>
 </html>

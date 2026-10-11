@@ -844,6 +844,539 @@ kbd {
   color: var(--neon-cyan);
 }
 
+/* ==========================================================================
+   AI SPECTATOR MODE & AUDIT SUITE STYLES
+   ========================================================================== */
+
+/* Header Audit Button */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-btn {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: var(--border-radius-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.header-btn:hover {
+  background: rgba(0, 240, 255, 0.2);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+/* HUD AI Spectator Toggle Button */
+.ai-toggle-btn {
+  font-size: 0.95rem;
+  transition: all 0.25s ease;
+}
+
+.ai-toggle-btn.active-ai {
+  background: rgba(0, 240, 255, 0.22);
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.6);
+  animation: aiHudPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes aiHudPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+    border-color: var(--neon-cyan);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.8);
+    border-color: var(--neon-purple);
+  }
+}
+
+/* Floating Spectator Indicator Badge */
+.spectator-badge {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: rgba(10, 15, 32, 0.92);
+  border: 1px solid var(--neon-cyan);
+  border-radius: 30px;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.4), inset 0 0 8px rgba(0, 240, 255, 0.15);
+  backdrop-filter: blur(6px);
+  pointer-events: auto;
+  animation: badgeSlideDown 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes badgeSlideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -15px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.badge-pulse-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #2eea70;
+  box-shadow: 0 0 10px #2eea70, 0 0 16px #2eea70;
+  animation: pulseDot 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.35); opacity: 1; box-shadow: 0 0 16px #2eea70; }
+}
+
+.badge-text {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+  white-space: nowrap;
+}
+
+.badge-stop-btn {
+  background: rgba(255, 42, 109, 0.2);
+  border: 1px solid var(--neon-pink);
+  color: var(--neon-pink);
+  font-family: var(--font-display);
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.badge-stop-btn:hover {
+  background: var(--neon-pink);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(255, 42, 109, 0.7);
+}
+
+/* Menu Secondary Buttons Row */
+.menu-btn-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 380px;
+}
+
+.menu-secondary-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.ai-spectate-btn,
+.audit-open-btn {
+  flex: 1;
+  font-size: 0.85rem !important;
+  padding: 10px 12px !important;
+  letter-spacing: 1px !important;
+}
+
+.ai-spectate-btn {
+  background: rgba(168, 85, 247, 0.12) !important;
+  border: 1px solid rgba(168, 85, 247, 0.45) !important;
+  color: #c084fc !important;
+}
+
+.ai-spectate-btn:hover {
+  background: rgba(168, 85, 247, 0.25) !important;
+  box-shadow: 0 0 16px rgba(168, 85, 247, 0.5) !important;
+}
+
+.audit-open-btn {
+  background: rgba(0, 240, 255, 0.08) !important;
+  border: 1px solid rgba(0, 240, 255, 0.35) !important;
+  color: var(--neon-cyan) !important;
+}
+
+.audit-open-btn:hover {
+  background: rgba(0, 240, 255, 0.2) !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.5) !important;
+}
+
+/* Spectator Auto-Restart Notice */
+.spectator-restart-notice {
+  font-family: var(--font-ui);
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--neon-cyan);
+  background: rgba(0, 240, 255, 0.12);
+  border: 1px dashed var(--neon-cyan);
+  border-radius: var(--border-radius-sm);
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  text-align: center;
+  animation: pulseNotice 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseNotice {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; border-color: #2eea70; color: #2eea70; }
+}
+
+/* ==========================================================================
+   AUDIT SUITE MODAL DIALOG
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(4, 7, 18, 0.85);
+  backdrop-filter: blur(8px);
+  padding: 16px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.audit-modal-content {
+  width: 100%;
+  max-width: 520px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  background: #090e22;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.25), 0 20px 50px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(13, 20, 48, 0.9);
+  border-bottom: 1px solid rgba(0, 240, 255, 0.2);
+}
+
+.modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.modal-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--neon-purple);
+  text-transform: uppercase;
+}
+
+.modal-title {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+}
+
+.modal-close-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card-section-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+/* Config Card */
+.audit-config-card {
+  background: rgba(14, 21, 46, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-md);
+  padding: 12px 14px;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.config-field label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.config-select {
+  background: #060917;
+  color: var(--text-main);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: var(--border-radius-sm);
+  padding: 7px 10px;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.config-select:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+}
+
+.checkbox-field {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.82rem !important;
+  color: #38bdf8 !important;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: var(--neon-cyan);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+/* Invariants Card */
+.audit-invariants-card {
+  background: rgba(14, 21, 46, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-md);
+  padding: 12px 14px;
+}
+
+.invariants-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inv-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+}
+
+.inv-pill.pill-passed {
+  background: rgba(46, 234, 112, 0.12);
+  border-color: rgba(46, 234, 112, 0.45);
+  color: #2eea70;
+  box-shadow: 0 0 10px rgba(46, 234, 112, 0.2);
+}
+
+.inv-pill.pill-failed {
+  background: rgba(255, 42, 109, 0.18);
+  border-color: var(--neon-pink);
+  color: var(--neon-pink);
+  box-shadow: 0 0 12px rgba(255, 42, 109, 0.4);
+}
+
+.inv-icon {
+  font-weight: 900;
+}
+
+/* Metrics Grid Card */
+.audit-metrics-card {
+  background: rgba(10, 15, 34, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--border-radius-sm);
+}
+
+.metric-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+
+.metric-val {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  margin-top: 2px;
+}
+
+/* Terminal Log Card */
+.audit-log-card {
+  background: #04060e;
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+}
+
+.audit-terminal {
+  max-height: 140px;
+  overflow-y: auto;
+  border-radius: var(--border-radius-sm);
+  background: #020408;
+  padding: 8px 10px;
+}
+
+.audit-terminal-pre {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #38bdf8;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 0;
+}
+
+/* Modal Footer */
+.modal-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 20px;
+  background: rgba(13, 20, 48, 0.95);
+  border-top: 1px solid rgba(0, 240, 255, 0.2);
+  gap: 10px;
+}
+
+.modal-btn {
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  padding: 9px 15px;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn.primary-btn {
+  background: linear-gradient(135deg, var(--neon-cyan), #0077ff);
+  color: #050711;
+  border: none;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.45);
+}
+
+.modal-btn.primary-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.7);
+}
+
+.modal-btn.secondary-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-main);
+}
+
+.modal-btn.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.modal-btn.stop-btn {
+  background: rgba(255, 42, 109, 0.2);
+  border: 1px solid var(--neon-pink);
+  color: var(--neon-pink);
+}
+
+.modal-btn.stop-btn:hover {
+  background: var(--neon-pink);
+  color: #fff;
+  box-shadow: 0 0 15px rgba(255, 42, 109, 0.6);
+}
+
 /* Responsive Media Queries */
 @media (hover: none) and (pointer: coarse) {
   .touch-controls {

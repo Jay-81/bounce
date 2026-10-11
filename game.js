@@ -1275,6 +1275,10 @@
       this.lastTime = 0;
       this.animationFrameId = null;
 
+      // Autoplayer & Automated Audit Suite References (bound by autoplayer.js)
+      this.autoplayer = null;
+      this.auditManager = null;
+
       // Initialize
       this.setupEventListeners();
       this.updateSoundButtonUI();
@@ -1533,6 +1537,14 @@
       if (this.currentState === STATE.GAMEOVER || this.runResultsProcessed) return;
       this.runResultsProcessed = true;
 
+      // Telemetry Hooks for Audit Manager & Autoplayer
+      if (this.auditManager && this.auditManager.active) {
+        this.auditManager.onGameOver(reason);
+      }
+      if (this.autoplayer && this.autoplayer.enabled) {
+        this.autoplayer.onGameOver();
+      }
+
       this.setGameState(STATE.GAMEOVER);
       this.resetHeldKeys();
 
@@ -1652,6 +1664,9 @@
         this.ball.applyAirJump();
         this.particles.spawnAirJumpRing(this.ball.x, this.ball.y);
         this.sound.playAirJump();
+        if (this.auditManager && this.auditManager.active) {
+          this.auditManager.onAirJump();
+        }
       }
     }
 
@@ -2012,6 +2027,9 @@
           this.runOrbs++;
           this.sound.playOrbCollect();
           this.particles.spawnOrbCollectSparks(orb.x, orbY);
+          if (this.auditManager && this.auditManager.active) {
+            this.auditManager.onCollectible('orb', orb);
+          }
           this.collectibles.splice(i, 1);
         }
       }
@@ -2029,6 +2047,9 @@
           this.runStars++;
           this.sound.playStarCollect();
           this.particles.spawnStarCollectBurst(star.x, starY);
+          if (this.auditManager && this.auditManager.active) {
+            this.auditManager.onCollectible('star', star);
+          }
           this.specialStars.splice(i, 1);
         }
       }
@@ -2114,6 +2135,14 @@
     update(dt) {
       if (this.currentState !== STATE.PLAYING) {
         return;
+      }
+
+      // Autoplayer controller execution & live audit evaluation
+      if (this.autoplayer && this.autoplayer.enabled) {
+        this.autoplayer.update(dt);
+      }
+      if (this.auditManager && this.auditManager.active) {
+        this.auditManager.onFrame(dt);
       }
 
       // Substepping prevents tunneling even with frame delays
