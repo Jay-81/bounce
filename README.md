@@ -37,16 +37,28 @@ No compilation or npm packages required! Simply:
 - **Memory Recycling**: Platforms far below the screen are automatically culled to guarantee zero memory leaks and sustained 60 FPS performance.
 - **World vs. Screen Separation**: Physics and collision calculations run purely in world space, eliminating camera jitter and tunneling.
 
-### 2. Level Progression System & HUD
-- **Compact HUD**: Top-left corner displays the current level (`LVL 1`, `LVL 2`, etc.) and a neon progress bar tracking height progress toward the next milestone.
-- **Level Milestones**: Reaching height targets (Level 1: 500, Level 2: 1200, Level 3: 2100...) triggers a celebratory banner notification (`LEVEL 2 REACHED!`) and a cheerful electronic chime.
-- **Persistent Progress**: Best altitude score and highest completed level are automatically saved in `localStorage`.
+### 2. Level-Based Color Themes & Visual Identity
+- **Distinct Neon Palettes**:
+  - **Level 1**: Cyan & Electric Blue (`#00f0ff` / `#0077ff`)
+  - **Level 2**: Purple & Magenta (`#a855f7` / `#d946ef`)
+  - **Level 3**: Neon Green & Lime (`#2eea70` / `#a3e635`)
+  - **Level 4**: Orange & Gold (`#ff8800` / `#ffd700`)
+  - **Level 5**: Pink & Hot Magenta (`#f43f5e` / `#ff007f`)
+  - **Level 6+**: Predictably cycles through the themes.
+- **Smooth Real-Time Transitions**: Reaching a new level triggers an automated, smooth delta-time RGB interpolation that morphs all platforms (existing and new), the ball trail accent, and HUD elements in real time.
+- **Clean Platforms**: All platform text labels (`START BASE`, `TIER 1`, `TIER 2`) have been removed for a clean, sleek arcade aesthetic with glowing borders and impact rails.
 
-### 3. Progressive Hazard Spikes
-- **Safe Opening (Level 1)**: The initial climb is completely free of hazards, allowing players to find their rhythm.
-- **Neon Spikes (Level 2+)**: Distinct crimson glowing spike strips appear on select platforms. Landing directly on a spike shatters the orb and ends the run, while the remainder of the platform remains safe to land on.
+### 3. Progressive Obstacles & Fair Challenge
+- **Introductory Climb (Level 1)**: 100% free of hazards, ensuring new players comfortably master bouncing and air-jump timing.
+- **Gentle Introduction (Level 2)**: Introduces razor spikes at an 18% rate on stationary platforms only, with generous safe landing zones.
+- **Progressive Ramp-Up (Level 3+)**: Spike probability scales smoothly (Level 3: 24%, Level 4: 28%, Level 5+: capped at 32%).
+- **High-Contrast Hazard Design**: Spikes feature a caution baseline (`#ffcc00`), white-hot glowing tips, crimson danger fill, and distinct triangular teeth so they remain clearly distinguishable from platforms across all level color themes.
 
-### 4. Interactive Web Audio Synthesizer
+### 4. Platform Movement Variety
+- **Intentional Mix**: Guaranteed mixture of stationary platforms and horizontally moving patrol platforms (~50/50 balance) throughout the endless ascent.
+- **Steady Launch**: The starting base and safe tiers provide immediate stability before moving platforms challenge the climb.
+
+### 5. Interactive Web Audio Synthesizer
 - **Native Synthesized Arcade Audio**:
   - **Bounce**: Soft, punchy electronic pop upon landing.
   - **Level Completion**: Rising cheerful synth arpeggio chord upon unlocking a milestone.
@@ -55,7 +67,7 @@ No compilation or npm packages required! Simply:
   - **Air Jump & Head Bump**: Synth whoosh on air jump and metallic thud on underside bumps.
 - **Mute Toggle**: Quick sound toggle icon in the top corner (or press <kbd>M</kbd>), with preferences persisted in `localStorage`.
 
-### 5. Preserved Core Physics & Controls
+### 6. Preserved Core Physics & Controls
 - **Automatic Platform Bouncing**: Automatic launch on descending onto safe platform surfaces.
 - **Single Edge-Triggered Air Jump**: One optional air jump per bounce; holding Up does not permit infinite flight.
 - **Consistent 2-Way Collisions**: Landing on top surfaces triggers bounces; hitting undersides stops the ball and deflects it downward without glitching.

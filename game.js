@@ -45,6 +45,125 @@
     return m;
   }
 
+  // --- Level Neon Color Themes ---
+  // Level 1: Cyan and electric blue
+  // Level 2: Purple and magenta
+  // Level 3: Neon green and lime
+  // Level 4: Orange and gold
+  // Level 5: Pink and hot magenta
+  // Level 6 onward: Cycles through themes predictably
+  const LEVEL_THEMES = [
+    {
+      name: 'Cyan & Electric Blue',
+      primary: [0, 240, 255],       // #00f0ff
+      secondary: [0, 119, 255],     // #0077ff
+      rail: [56, 189, 248],         // #38bdf8
+      bodyTop: [11, 26, 48],        // #0b1a30
+      bodyBottom: [6, 13, 26],      // #060d1a
+    },
+    {
+      name: 'Purple & Magenta',
+      primary: [168, 85, 247],      // #a855f7
+      secondary: [217, 70, 239],    // #d946ef
+      rail: [192, 132, 252],        // #c084fc
+      bodyTop: [28, 18, 54],        // #1c1236
+      bodyBottom: [13, 8, 28],      // #0d081c
+    },
+    {
+      name: 'Neon Green & Lime',
+      primary: [46, 234, 112],      // #2eea70
+      secondary: [163, 230, 53],    // #a3e635
+      rail: [74, 222, 128],         // #4ade80
+      bodyTop: [14, 38, 23],        // #0e2617
+      bodyBottom: [6, 19, 11],      // #06130b
+    },
+    {
+      name: 'Orange & Gold',
+      primary: [255, 136, 0],       // #ff8800
+      secondary: [255, 215, 0],     // #ffd700
+      rail: [245, 158, 11],         // #f59e0b
+      bodyTop: [43, 23, 8],         // #2b1708
+      bodyBottom: [20, 9, 2],       // #140902
+    },
+    {
+      name: 'Pink & Hot Magenta',
+      primary: [244, 63, 94],       // #f43f5e
+      secondary: [255, 0, 127],     // #ff007f
+      rail: [251, 113, 133],        // #fb7185
+      bodyTop: [43, 11, 30],        // #2b0b1e
+      bodyBottom: [20, 4, 14],      // #14040e
+    },
+  ];
+
+  function lerpColor(c1, c2, t) {
+    return [
+      c1[0] + (c2[0] - c1[0]) * t,
+      c1[1] + (c2[1] - c1[1]) * t,
+      c1[2] + (c2[2] - c1[2]) * t,
+    ];
+  }
+
+  function rgbStr(c) {
+    return `rgb(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])})`;
+  }
+
+  function rgbaStr(c, a) {
+    return `rgba(${Math.round(c[0])}, ${Math.round(c[1])}, ${Math.round(c[2])}, ${a})`;
+  }
+
+  class ThemeManager {
+    constructor() {
+      this.currentLevel = 1;
+      this.current = this.cloneTheme(LEVEL_THEMES[0]);
+      this.target = this.cloneTheme(LEVEL_THEMES[0]);
+    }
+
+    cloneTheme(theme) {
+      return {
+        primary: [...theme.primary],
+        secondary: [...theme.secondary],
+        rail: [...theme.rail],
+        bodyTop: [...theme.bodyTop],
+        bodyBottom: [...theme.bodyBottom],
+      };
+    }
+
+    setLevel(lvl, instant = false) {
+      this.currentLevel = lvl;
+      const themeIdx = (lvl - 1) % LEVEL_THEMES.length;
+      const t = LEVEL_THEMES[themeIdx];
+      this.target = this.cloneTheme(t);
+      if (instant) {
+        this.current = this.cloneTheme(t);
+      }
+    }
+
+    update(dt) {
+      // Smooth interpolation factor (~0.4s to 0.6s full seamless blend)
+      const t = Math.min(1, dt * 3.5);
+      this.current.primary = lerpColor(this.current.primary, this.target.primary, t);
+      this.current.secondary = lerpColor(this.current.secondary, this.target.secondary, t);
+      this.current.rail = lerpColor(this.current.rail, this.target.rail, t);
+      this.current.bodyTop = lerpColor(this.current.bodyTop, this.target.bodyTop, t);
+      this.current.bodyBottom = lerpColor(this.current.bodyBottom, this.target.bodyBottom, t);
+    }
+
+    getColors() {
+      const c = this.current;
+      return {
+        primary: rgbStr(c.primary),
+        primaryRgb: c.primary,
+        primaryAlpha: (a) => rgbaStr(c.primary, a),
+        secondary: rgbStr(c.secondary),
+        secondaryAlpha: (a) => rgbaStr(c.secondary, a),
+        rail: rgbStr(c.rail),
+        railAlpha: (a) => rgbaStr(c.rail, a),
+        bodyTop: rgbStr(c.bodyTop),
+        bodyBottom: rgbStr(c.bodyBottom),
+      };
+    }
+  }
+
   // --- Game States ---
   const STATE = {
     MENU: 'MENU',
@@ -307,8 +426,8 @@
       }
     }
 
-    render(ctx) {
-      // 1. Render glowing trail
+    render(ctx, theme = null) {
+      // 1. Render glowing trail with subtle active level theme accent
       for (let i = this.trail.length - 1; i >= 0; i--) {
         const pt = this.trail[i];
         if (pt.alpha <= 0) continue;
@@ -317,7 +436,9 @@
         ctx.save();
         ctx.beginPath();
         ctx.arc(pt.x, pt.y, trailRadius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(0, 240, 255, ${Math.max(0, pt.alpha * 0.35)})`;
+        ctx.fillStyle = theme
+          ? theme.primaryAlpha(Math.max(0, pt.alpha * 0.35))
+          : `rgba(0, 240, 255, ${Math.max(0, pt.alpha * 0.35)})`;
         ctx.fill();
         ctx.restore();
       }
@@ -378,13 +499,12 @@
 
   // --- Platform Entity with Moving & Spike Hazard Support ---
   class Platform {
-    constructor(x, y, width, height = 16, label = '', vx = 0, minX = 0, maxX = CANVAS_WIDTH, spike = null) {
+    constructor(x, y, width, height = 16, vx = 0, minX = 0, maxX = CANVAS_WIDTH, spike = null) {
       this.x = x;
       this.y = y;
       this.prevX = x;
       this.width = width;
       this.height = height;
-      this.label = label;
       this.impactPulse = 0;
       this.vx = vx;
       this.minX = minX;
@@ -418,16 +538,22 @@
       this.impactPulse = 1.0;
     }
 
-    render(ctx) {
+    render(ctx, theme = null) {
       ctx.save();
 
       const pulseOffset = Math.sin(this.impactPulse * Math.PI) * 2;
       const drawY = this.y + pulseOffset;
 
-      // Platform body gradient
+      const bodyTop = theme ? theme.bodyTop : '#0b1a30';
+      const bodyBottom = theme ? theme.bodyBottom : '#060d1a';
+      const primaryCol = theme ? theme.primary : '#00f0ff';
+      const primaryAlpha = theme ? theme.primaryAlpha : (a) => `rgba(0, 240, 255, ${a})`;
+      const railCol = theme ? theme.rail : '#38bdf8';
+
+      // Platform body gradient from active level theme
       const bodyGrad = ctx.createLinearGradient(this.x, drawY, this.x, drawY + this.height);
-      bodyGrad.addColorStop(0, '#1c1642');
-      bodyGrad.addColorStop(1, '#0e0c24');
+      bodyGrad.addColorStop(0, bodyTop);
+      bodyGrad.addColorStop(1, bodyBottom);
 
       ctx.beginPath();
       ctx.roundRect(this.x, drawY, this.width, this.height, 6);
@@ -436,19 +562,19 @@
 
       // Platform border & neon glow
       ctx.lineWidth = 2;
-      ctx.strokeStyle = this.impactPulse > 0 ? '#00f0ff' : '#a855f7';
+      ctx.strokeStyle = this.impactPulse > 0 ? '#ffffff' : primaryCol;
       ctx.stroke();
 
       // Glowing top impact rail
       const railGrad = ctx.createLinearGradient(this.x, drawY, this.x + this.width, drawY);
       if (this.impactPulse > 0) {
-        railGrad.addColorStop(0, 'rgba(0, 240, 255, 0.5)');
+        railGrad.addColorStop(0, primaryAlpha(0.6));
         railGrad.addColorStop(0.5, '#ffffff');
-        railGrad.addColorStop(1, 'rgba(0, 240, 255, 0.5)');
+        railGrad.addColorStop(1, primaryAlpha(0.6));
       } else {
-        railGrad.addColorStop(0, 'rgba(168, 85, 247, 0.4)');
-        railGrad.addColorStop(0.5, '#c084fc');
-        railGrad.addColorStop(1, 'rgba(168, 85, 247, 0.4)');
+        railGrad.addColorStop(0, primaryAlpha(0.35));
+        railGrad.addColorStop(0.5, railCol);
+        railGrad.addColorStop(1, primaryAlpha(0.35));
       }
 
       ctx.beginPath();
@@ -468,21 +594,16 @@
           this.height + 6,
           8
         );
-        ctx.strokeStyle = `rgba(0, 240, 255, ${this.impactPulse * 0.7})`;
+        ctx.strokeStyle = primaryAlpha(this.impactPulse * 0.75);
         ctx.lineWidth = 2;
         ctx.stroke();
       }
 
-      // Platform Tier Label
-      if (this.label) {
-        ctx.font = '600 10px Orbitron, sans-serif';
-        ctx.fillStyle = 'rgba(168, 85, 247, 0.7)';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(this.label, this.x + this.width / 2, drawY + this.height / 2);
-      }
+      // NOTE: Platform labels (START BASE, TIER 1, TIER 2, etc.) have been completely removed
+      // to keep platforms clean visual geometric shapes.
 
       // Render Spike Hazard (if attached)
+      // Designed for high-contrast visibility across ALL themes (including Orange & Hot Magenta)
       if (this.spike) {
         const sX = (this.spike.side === 'left') ? this.x + 4 : this.x + this.width - this.spike.width - 4;
         const sY = drawY;
@@ -490,11 +611,13 @@
         const sH = this.spike.height;
 
         ctx.save();
-        // Red hazard base indicator
-        ctx.fillStyle = 'rgba(255, 42, 109, 0.4)';
+        // High-contrast caution baseline (Warning Yellow #ffcc00 + dark backing)
+        ctx.fillStyle = '#140004';
         ctx.fillRect(sX, sY, sW, 3);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(sX, sY, sW, 1.5);
 
-        // Three glowing neon spikes
+        // Glowing razor crimson spikes with incandescent white apex
         const teeth = 3;
         const toothW = sW / teeth;
         for (let i = 0; i < teeth; i++) {
@@ -508,11 +631,18 @@
           ctx.lineTo(tRight, sY);
           ctx.closePath();
 
-          ctx.fillStyle = '#ff2a6d';
-          ctx.shadowColor = '#ff2a6d';
-          ctx.shadowBlur = 8;
+          // High-visibility vertical gradient: white-hot apex -> crimson red -> deep hazard red
+          const spikeGrad = ctx.createLinearGradient(tMid, sY - sH, tMid, sY);
+          spikeGrad.addColorStop(0, '#ffffff');
+          spikeGrad.addColorStop(0.22, '#ff1744');
+          spikeGrad.addColorStop(1, '#b70020');
+
+          ctx.fillStyle = spikeGrad;
+          ctx.shadowColor = '#ff003c';
+          ctx.shadowBlur = 10;
           ctx.fill();
 
+          // Crisp white boundary line
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1;
           ctx.stroke();
@@ -535,7 +665,9 @@
       this.particles = [];
     }
 
-    spawnBounceSparks(x, y, count = 12) {
+    spawnBounceSparks(x, y, themeColors = null, count = 12) {
+      const col1 = themeColors ? themeColors.primary : '#00f0ff';
+      const col2 = themeColors ? themeColors.secondary : '#a855f7';
       for (let i = 0; i < count; i++) {
         if (this.particles.length >= this.maxParticles) {
           this.particles.shift();
@@ -548,7 +680,7 @@
           vx: Math.cos(angle) * speed,
           vy: Math.sin(angle) * speed - 40,
           radius: 1.5 + Math.random() * 2,
-          color: Math.random() > 0.4 ? '#00f0ff' : '#a855f7',
+          color: Math.random() > 0.4 ? col1 : col2,
           life: 1.0,
           decay: 2.2 + Math.random() * 1.5,
         });
@@ -779,6 +911,7 @@
       this.background = new Background();
       this.particles = new ParticleManager();
       this.ball = new Ball();
+      this.themeManager = new ThemeManager();
 
       // Camera Y (world space offset)
       this.cameraY = 0;
@@ -876,7 +1009,12 @@
       if (this.bannerTimeoutId) {
         clearTimeout(this.bannerTimeoutId);
       }
+      const theme = this.themeManager.getColors();
       this.levelBannerTitle.textContent = `LEVEL ${lvl} REACHED!`;
+      this.levelBannerTitle.style.color = theme.primary;
+      this.levelBannerTitle.style.textShadow = `0 0 20px ${theme.primaryAlpha(0.9)}`;
+      this.levelBanner.style.borderColor = theme.primaryAlpha(0.7);
+      this.levelBanner.style.boxShadow = `0 0 25px ${theme.primaryAlpha(0.45)}, inset 0 0 15px ${theme.primaryAlpha(0.2)}`;
       this.levelBanner.classList.remove('hidden');
       // Trigger CSS animation re-flow
       this.levelBanner.style.animation = 'none';
@@ -928,12 +1066,17 @@
       this.particles.reset();
 
       // Reset Initial Platforms (Level 1 start: completely hazard free)
+      // Generous stationary base, moving tier 1, stationary tier 2 (clean visual shapes, no text labels)
       this.platforms = [
-        new Platform(120, 620, 240, 18, 'START BASE', 45, 60, 180),
-        new Platform(80, 440, 140, 16, 'TIER 1', -80, 30, 310),
-        new Platform(250, 260, 140, 16, 'TIER 2', 70, 40, 300),
+        new Platform(100, 620, 280, 18, 0, 0, CANVAS_WIDTH, null),
+        new Platform(80, 440, 140, 16, -75, 30, 310, null),
+        new Platform(230, 260, 140, 16, 0, 0, CANVAS_WIDTH, null),
       ];
       this.highestGeneratedY = 260;
+
+      // Reset theme instantly to Level 1
+      this.themeManager.setLevel(1, true);
+      this.applyThemeToHUD();
 
       // Generate initial buffer of platforms above Tier 2
       this.generatePlatformsAhead();
@@ -987,6 +1130,23 @@
       this.menuBestScore.textContent = this.bestScore;
       if (this.menuHighestLevel) this.menuHighestLevel.textContent = this.highestLevelCompleted;
       if (this.hudLevelText) this.hudLevelText.textContent = `LVL ${this.level}`;
+      this.applyThemeToHUD();
+    }
+
+    applyThemeToHUD() {
+      const theme = this.themeManager.getColors();
+      if (this.hudLevelText) {
+        this.hudLevelText.style.color = theme.primary;
+        this.hudLevelText.style.textShadow = `0 0 10px ${theme.primaryAlpha(0.8)}`;
+      }
+      if (this.hudLevelProgress) {
+        this.hudLevelProgress.style.background = `linear-gradient(90deg, ${theme.secondary}, ${theme.primary})`;
+        this.hudLevelProgress.style.boxShadow = `0 0 8px ${theme.primaryAlpha(0.8)}`;
+      }
+      const track = this.hudLevelProgress ? this.hudLevelProgress.parentElement : null;
+      if (track) {
+        track.style.borderColor = theme.primaryAlpha(0.4);
+      }
     }
 
     resetHeldKeys() {
@@ -1009,7 +1169,7 @@
     generatePlatformsAhead() {
       // Keep platforms generated at least 650px above camera viewport
       while (this.highestGeneratedY > this.cameraY - 650) {
-        // Consistent, bounded vertical gap (122px to 152px)
+        // Consistent, bounded vertical gap (124px to 152px)
         const spacing = 124 + Math.random() * 28;
         const newY = this.highestGeneratedY - spacing;
         this.highestGeneratedY = newY;
@@ -1020,11 +1180,13 @@
         // Platform width
         let width = 140;
         if (altitude < 500) {
-          width = 135 + Math.random() * 25; // 135 - 160px
+          width = 140 + Math.random() * 25; // 140 - 165px
         } else if (altitude < 1200) {
-          width = 125 + Math.random() * 25; // 125 - 150px
+          width = 130 + Math.random() * 25; // 130 - 155px
+        } else if (altitude < 2100) {
+          width = 125 + Math.random() * 20; // 125 - 145px
         } else {
-          width = 115 + Math.random() * 25; // 115 - 140px
+          width = 118 + Math.random() * 22; // 118 - 140px
         }
 
         // Horizontal position within playable bounds
@@ -1032,38 +1194,62 @@
         const maxX = CANVAS_WIDTH - width - 25;
         const x = minX + Math.random() * (maxX - minX);
 
-        // Moving platform probability & speed
+        // Moving platform probability & speed:
+        // Preserves intentional mixture of stationary & moving platforms
         let vx = 0;
         let platMinX = 0;
         let platMaxX = CANVAS_WIDTH;
 
-        const moveChance = altitude < 500 ? 0.35 : (altitude < 1200 ? 0.52 : 0.65);
+        const moveChance = altitude < 500 ? 0.35 : (altitude < 1200 ? 0.42 : 0.48);
         if (Math.random() < moveChance) {
           const speed = (altitude < 500 ? 45 : 55) + Math.random() * 30;
           vx = (Math.random() > 0.5 ? 1 : -1) * speed;
-          const patrolRange = 40 + Math.random() * 55;
+          const patrolRange = 40 + Math.random() * 50;
           platMinX = Math.max(20, x - patrolRange);
           platMaxX = Math.min(CANVAS_WIDTH - width - 20, x + patrolRange);
         }
 
         // Spike Hazard placement:
-        // Level 1 (altitude < 500): ZERO hazards for safe introductory climb!
-        // Level 2 (500 <= altitude < 1200): 18% chance on generous platforms
-        // Level 3+ (altitude >= 1200): 26% chance
+        // - Level 1 (altitude < 500): ZERO hazards for introductory climb
+        // - Level 2 (500 <= altitude < 1200): 18% chance, width 28px, stationary platforms only
+        // - Level 3 (1200 <= altitude < 2100): 24% chance, width 30px
+        // - Level 4 (2100 <= altitude < 3200): 28% chance, width 32px
+        // - Level 5+ (altitude >= 3200): 32% chance (capped to maintain fairness)
         let spike = null;
         if (altitude >= 500) {
-          const spikeChance = altitude < 1200 ? 0.18 : 0.26;
-          if (Math.random() < spikeChance) {
+          let spikeChance = 0;
+          let spikeWidth = 28;
+
+          if (altitude < 1200) {
+            spikeChance = 0.18;
+            spikeWidth = 28;
+          } else if (altitude < 2100) {
+            spikeChance = 0.24;
+            spikeWidth = 30;
+          } else if (altitude < 3200) {
+            spikeChance = 0.28;
+            spikeWidth = 32;
+          } else {
+            spikeChance = 0.32;
+            spikeWidth = 32;
+          }
+
+          // Ensure fair play:
+          // In Level 2, only place spikes on stationary platforms to ease players in
+          // Platform must be at least 115px wide so safe landing zone is generous (>= 85px)
+          const allowSpike = (width >= 115) && (vx === 0 || altitude >= 1200);
+          if (allowSpike && Math.random() < spikeChance) {
+            const side = Math.random() > 0.5 ? 'left' : 'right';
             spike = {
-              width: 32,
+              width: spikeWidth,
               height: 13,
-              side: Math.random() > 0.5 ? 'left' : 'right',
+              side: side,
             };
           }
         }
 
         this.platforms.push(
-          new Platform(x, newY, width, 16, '', vx, platMinX, platMaxX, spike)
+          new Platform(x, newY, width, 16, vx, platMinX, platMaxX, spike)
         );
       }
 
@@ -1311,7 +1497,7 @@
             // Trigger automatic upward bounce and reset air jump!
             this.ball.triggerBounce();
             p.triggerImpact();
-            this.particles.spawnBounceSparks(this.ball.x, platTop);
+            this.particles.spawnBounceSparks(this.ball.x, platTop, this.themeManager.getColors());
             this.sound.playBounce();
             break;
           }
@@ -1360,6 +1546,10 @@
       }
       this.ball.updateVisuals(dt);
 
+      // Smooth level theme transition
+      this.themeManager.update(dt);
+      this.applyThemeToHUD();
+
       // Camera: Vertical follow upward
       // Keeps ball comfortably positioned on screen (~360px from top)
       const targetCameraY = this.ball.y - 360;
@@ -1389,6 +1579,7 @@
       // Check level completion milestone
       if (this.score >= nextMilestone) {
         this.level++;
+        this.themeManager.setLevel(this.level); // Smooth transition towards new level theme!
         this.showLevelBanner(this.level);
         this.sound.playLevelComplete();
 
@@ -1421,22 +1612,25 @@
       // Render Parallax Background (uses cameraY for parallax scroll)
       this.background.render(this.ctx, this.cameraY);
 
+      // Get active interpolated theme colors
+      const theme = this.themeManager.getColors();
+
       // Render World Entities (Platforms, Hazards, Particles, Ball)
       // Transformed by Camera Y offset
       this.ctx.save();
       this.ctx.translate(0, -this.cameraY);
 
-      // Render Platforms & Spikes
+      // Render Platforms & Spikes (all platforms automatically take active level theme)
       for (let i = 0; i < this.platforms.length; i++) {
-        this.platforms[i].render(this.ctx);
+        this.platforms[i].render(this.ctx, theme);
       }
 
       // Render Particles
       this.particles.render(this.ctx);
 
-      // Render Ball
+      // Render Ball with subtle level theme trail accent
       if (this.currentState === STATE.PLAYING || this.currentState === STATE.PAUSED) {
-        this.ball.render(this.ctx);
+        this.ball.render(this.ctx, theme);
       }
 
       this.ctx.restore();

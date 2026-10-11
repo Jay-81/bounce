@@ -168,8 +168,9 @@ html, body {
   font-size: 0.85rem;
   font-weight: 800;
   letter-spacing: 1.2px;
-  color: var(--neon-gold);
-  text-shadow: var(--neon-gold-glow);
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 }
 
 .level-progress-track {
@@ -178,15 +179,16 @@ html, body {
   background: rgba(255, 255, 255, 0.12);
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid rgba(255, 209, 102, 0.25);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  transition: border-color 0.3s ease;
 }
 
 .level-progress-bar {
   width: 0%;
   height: 100%;
-  background: linear-gradient(90deg, #ffd166, #ff2a6d);
-  box-shadow: 0 0 6px rgba(255, 209, 102, 0.8);
-  transition: width 0.15s ease-out;
+  background: linear-gradient(90deg, #0077ff, #00f0ff);
+  box-shadow: 0 0 6px rgba(0, 240, 255, 0.8);
+  transition: width 0.15s ease-out, background 0.3s ease, box-shadow 0.3s ease;
 }
 
 /* Scores Group (Center) */
