@@ -44,6 +44,18 @@
           </div>
         </div>
 
+        <!-- Collectibles in HUD (Energy Orbs & Special Stars) -->
+        <div class="hud-collectibles-group">
+          <div class="hud-collectible-item" title="Energy Orbs Collected">
+            <span class="hud-orb-dot"></span>
+            <span class="hud-collectible-val" id="hudRunOrbs">0</span>
+          </div>
+          <div class="hud-collectible-item" title="Special Stars Collected">
+            <span class="hud-star-glyph">★</span>
+            <span class="hud-collectible-val gold-accent" id="hudRunStars">0</span>
+          </div>
+        </div>
+
         <!-- Action Controls (Sound & Pause) -->
         <div class="hud-actions-group">
           <button class="icon-btn" id="soundBtn" title="Toggle Sound (M)" aria-label="Toggle Sound">
@@ -85,7 +97,7 @@
 
           <div class="instructions-card">
             <p class="instruction-text">
-              Climb endlessly through moving platforms. Bounce automatically, use W/Up for 1 air jump per bounce, and steer clear of red hazard spikes!
+              Climb endlessly, gather glowing energy orbs and rare golden stars. Dodge hazards, master your air jump, and aim for a 3-star rating!
             </p>
             <div class="controls-hint">
               <div class="key-pill"><span>A</span> / <span>D</span> Move</div>
@@ -98,12 +110,20 @@
 
           <div class="stats-preview-row">
             <div class="stats-preview-item">
-              <span class="stat-label">RECORD ALTITUDE</span>
+              <span class="stat-label">RECORD ALT</span>
               <span class="stat-val" id="menuBestScore">0</span>
             </div>
             <div class="stats-preview-item">
-              <span class="stat-label">HIGHEST LEVEL</span>
+              <span class="stat-label">HIGHEST LVL</span>
               <span class="stat-val gold-accent" id="menuHighestLevel">1</span>
+            </div>
+            <div class="stats-preview-item">
+              <span class="stat-label">TOTAL ORBS</span>
+              <span class="stat-val cyan-accent" id="menuTotalOrbs">0</span>
+            </div>
+            <div class="stats-preview-item">
+              <span class="stat-label">TOTAL STARS</span>
+              <span class="stat-val star-accent" id="menuTotalStars">0</span>
             </div>
           </div>
 
@@ -132,34 +152,79 @@
         </div>
       </div>
 
-      <!-- 3. Game Over Screen -->
+      <!-- 3. Results Screen (End-of-Run Overlay with Three-Star Rating) -->
       <div class="ui-screen hidden" id="gameOverScreen">
-        <div class="screen-content">
+        <div class="screen-content results-screen-content">
           <div class="game-over-header">
-            <h2 class="neon-screen-title danger-glow">GAME OVER</h2>
+            <h2 class="neon-screen-title" id="resultsTitle">RUN COMPLETE</h2>
             <p class="screen-subtext" id="gameOverSubtext">The orb fell into the void</p>
           </div>
 
-          <div class="score-summary-card">
-            <div class="score-row">
-              <span class="score-row-label">FINAL ALTITUDE</span>
-              <span class="score-row-value cyan-glow" id="finalScore">0</span>
+          <!-- Three-Star Performance Rating Display -->
+          <div class="performance-rating-board">
+            <div class="rating-stars-container" id="ratingStarsContainer">
+              <span class="rating-star" id="starIcon1">★</span>
+              <span class="rating-star" id="starIcon2">★</span>
+              <span class="rating-star" id="starIcon3">★</span>
             </div>
-            <div class="score-row">
-              <span class="score-row-label">LEVEL REACHED</span>
-              <span class="score-row-value gold-glow" id="finalLevelReached">1</span>
-            </div>
-            <div class="score-row">
-              <span class="score-row-label">BEST RECORD</span>
-              <span class="score-row-value purple-glow" id="finalBestScore">0</span>
-            </div>
-            <div class="new-best-tag hidden" id="newBestTag">★ NEW RECORD! ★</div>
+            <div class="rating-verdict-text" id="ratingVerdictText">NO STARS EARNED</div>
           </div>
 
-          <button class="neon-btn primary-neon-btn" id="restartBtn">
-            <span>CLIMB AGAIN</span>
-            <div class="btn-glow"></div>
-          </button>
+          <!-- Comprehensive Run & Lifetime Summary Card -->
+          <div class="score-summary-card">
+            <div class="score-grid-row">
+              <div class="score-col">
+                <span class="score-row-label">ALTITUDE</span>
+                <span class="score-row-value cyan-glow" id="finalScore">0</span>
+              </div>
+              <div class="score-col">
+                <span class="score-row-label">LEVEL</span>
+                <span class="score-row-value gold-glow" id="finalLevelReached">1</span>
+              </div>
+            </div>
+
+            <div class="score-grid-row">
+              <div class="score-col">
+                <span class="score-row-label">RUN ORBS</span>
+                <span class="score-row-value cyan-accent" id="finalRunOrbs">0</span>
+              </div>
+              <div class="score-col">
+                <span class="score-row-label">RUN STARS</span>
+                <span class="score-row-value star-accent" id="finalRunStars">0</span>
+              </div>
+            </div>
+
+            <div class="score-divider"></div>
+
+            <div class="score-grid-row meta-row">
+              <div class="score-col">
+                <span class="score-sub-label">RECORD: <strong id="finalBestScore">0</strong></span>
+              </div>
+              <div class="score-col">
+                <span class="score-sub-label">MAX LVL: <strong id="finalHighestLevel">1</strong></span>
+              </div>
+            </div>
+            <div class="score-grid-row meta-row">
+              <div class="score-col">
+                <span class="score-sub-label">TOTAL ORBS: <strong id="finalTotalOrbs">0</strong></span>
+              </div>
+              <div class="score-col">
+                <span class="score-sub-label">TOTAL STARS: <strong id="finalTotalStars">0</strong></span>
+              </div>
+            </div>
+
+            <div class="new-best-tag hidden" id="newBestTag">★ NEW RECORD ALTITUDE! ★</div>
+          </div>
+
+          <div class="results-actions">
+            <button class="neon-btn primary-neon-btn" id="restartBtn">
+              <span>CLIMB AGAIN</span>
+              <div class="btn-glow"></div>
+            </button>
+            <button class="neon-btn secondary-neon-btn" id="menuReturnBtn">
+              <span>MAIN MENU</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

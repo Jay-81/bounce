@@ -23,6 +23,25 @@
   const STORAGE_KEY_BEST = 'bounce_arcade_best_score';
   const STORAGE_KEY_LEVEL = 'bounce_arcade_highest_level';
   const STORAGE_KEY_SOUND = 'bounce_arcade_sound_enabled';
+  const STORAGE_KEY_TOTAL_ORBS = 'bounce_arcade_total_orbs';
+  const STORAGE_KEY_TOTAL_STARS = 'bounce_arcade_total_stars';
+  const STORAGE_KEY_LEVEL_RATINGS = 'bounce_arcade_level_ratings';
+
+  // Three-Star Performance Rating Thresholds (Configurable in one place)
+  const PERFORMANCE_RATING_CONFIG = {
+    STAR_1: {
+      minAltitude: 300,
+    },
+    STAR_2: {
+      minAltitude: 750,
+      minOrbs: 5,
+    },
+    STAR_3: {
+      minAltitude: 1400,
+      minOrbs: 12,
+      orSpecialStars: 1,
+    },
+  };
 
   // Physics Parameters (World space)
   const GRAVITY = 980;              // Base downward acceleration (px/s^2)
@@ -363,6 +382,244 @@
         osc.start(now);
         osc.stop(now + 0.08);
       } catch (e) {}
+    }
+
+    // 5. Energy Orb collection: Quick crystal pop chime
+    playOrbCollect() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.08);
+
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+
+        osc.start(now);
+        osc.stop(now + 0.09);
+      } catch (e) {}
+    }
+
+    // 6. Special Star collection: Radiant celestial arpeggio
+    playStarCollect() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const notes = [1046.50, 1318.51, 1567.98, 2093.00]; // C6, E6, G6, C7
+        notes.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.05;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.17);
+        });
+      } catch (e) {}
+    }
+
+    // 7. Results Screen Fanfare: Chords reflecting performance rating
+    playResultsScreen(rating = 0) {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        if (rating === 0) {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.exponentialRampToValueAtTime(140, now + 0.35);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.36);
+        } else {
+          const chord = rating === 3
+            ? [523.25, 659.25, 783.99, 1046.50]
+            : [440.00, 554.37, 659.25, 880.00];
+          chord.forEach((freq, idx) => {
+            const now = this.ctx.currentTime + idx * 0.08;
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0.22, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.29);
+          });
+        }
+      } catch (e) {}
+    }
+  }
+
+  // --- Collectible Energy Orb Entity (World Space) ---
+  class CollectibleOrb {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 7;
+      this.collected = false;
+      this.floatPhase = Math.random() * Math.PI * 2;
+      this.pulsePhase = Math.random() * Math.PI * 2;
+      this.floatSpeed = 2.4;
+      this.pulseSpeed = 3.2;
+    }
+
+    update(dt) {
+      this.floatPhase += this.floatSpeed * dt;
+      this.pulsePhase += this.pulseSpeed * dt;
+    }
+
+    getVisualY() {
+      return this.y + Math.sin(this.floatPhase) * 4.5;
+    }
+
+    render(ctx) {
+      if (this.collected) return;
+      const drawY = this.getVisualY();
+      const pulse = (Math.sin(this.pulsePhase) + 1) * 0.5;
+      const outerGlowRadius = this.radius * (1.8 + pulse * 0.6);
+
+      ctx.save();
+      ctx.translate(this.x, drawY);
+
+      // Outer cyan aura glow
+      const glowGrad = ctx.createRadialGradient(0, 0, this.radius * 0.3, 0, 0, outerGlowRadius);
+      glowGrad.addColorStop(0, 'rgba(0, 240, 255, 0.85)');
+      glowGrad.addColorStop(0.5, 'rgba(0, 180, 255, 0.35)');
+      glowGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+
+      ctx.beginPath();
+      ctx.arc(0, 0, outerGlowRadius, 0, Math.PI * 2);
+      ctx.fillStyle = glowGrad;
+      ctx.fill();
+
+      // Energy orb core
+      const coreGrad = ctx.createRadialGradient(
+        -this.radius * 0.25,
+        -this.radius * 0.25,
+        this.radius * 0.1,
+        0,
+        0,
+        this.radius
+      );
+      coreGrad.addColorStop(0, '#ffffff');
+      coreGrad.addColorStop(0.4, '#00f0ff');
+      coreGrad.addColorStop(0.85, '#0096c7');
+      coreGrad.addColorStop(1, '#0077b6');
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = coreGrad;
+      ctx.fill();
+
+      // Sharp inner white highlight
+      ctx.beginPath();
+      ctx.arc(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.32, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
+
+  // --- Collectible Special Star Entity (World Space) ---
+  class CollectibleStar {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 11; // Collision radius
+      this.outerRadius = 14;
+      this.innerRadius = 6.5;
+      this.collected = false;
+      this.floatPhase = Math.random() * Math.PI * 2;
+      this.floatSpeed = 2.0;
+      this.rot = 0;
+      this.rotSpeed = 1.3;
+    }
+
+    update(dt) {
+      this.floatPhase += this.floatSpeed * dt;
+      this.rot += this.rotSpeed * dt;
+    }
+
+    getVisualY() {
+      return this.y + Math.sin(this.floatPhase) * 5.0;
+    }
+
+    render(ctx) {
+      if (this.collected) return;
+      const drawY = this.getVisualY();
+
+      ctx.save();
+      ctx.translate(this.x, drawY);
+
+      // Celestial golden glow aura
+      const auraGrad = ctx.createRadialGradient(0, 0, this.innerRadius, 0, 0, this.outerRadius * 1.8);
+      auraGrad.addColorStop(0, 'rgba(255, 215, 0, 0.7)');
+      auraGrad.addColorStop(0.5, 'rgba(255, 170, 0, 0.28)');
+      auraGrad.addColorStop(1, 'rgba(255, 215, 0, 0)');
+
+      ctx.beginPath();
+      ctx.arc(0, 0, this.outerRadius * 1.8, 0, Math.PI * 2);
+      ctx.fillStyle = auraGrad;
+      ctx.fill();
+
+      // Rotating 5-point star
+      ctx.rotate(this.rot);
+
+      ctx.beginPath();
+      const points = 5;
+      for (let i = 0; i < points * 2; i++) {
+        const r = (i % 2 === 0) ? this.outerRadius : this.innerRadius;
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        const px = Math.cos(angle) * r;
+        const py = Math.sin(angle) * r;
+        if (i === 0) {
+          ctx.moveTo(px, py);
+        } else {
+          ctx.lineTo(px, py);
+        }
+      }
+      ctx.closePath();
+
+      // Radiant gold gradient
+      const starGrad = ctx.createLinearGradient(0, -this.outerRadius, 0, this.outerRadius);
+      starGrad.addColorStop(0, '#ffffff');
+      starGrad.addColorStop(0.3, '#fff3b0');
+      starGrad.addColorStop(0.7, '#ffd700');
+      starGrad.addColorStop(1, '#ff9e00');
+
+      ctx.fillStyle = starGrad;
+      ctx.shadowColor = '#ffd700';
+      ctx.shadowBlur = 10;
+      ctx.fill();
+
+      // Sharp golden border
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+
+      ctx.restore();
     }
   }
 
@@ -768,6 +1025,46 @@
       }
     }
 
+    spawnOrbCollectSparks(x, y, count = 12) {
+      for (let i = 0; i < count; i++) {
+        if (this.particles.length >= this.maxParticles) {
+          this.particles.shift();
+        }
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 70 + Math.random() * 120;
+        this.particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 20,
+          radius: 1.5 + Math.random() * 2,
+          color: Math.random() > 0.3 ? '#00f0ff' : '#ffffff',
+          life: 0.85,
+          decay: 2.6 + Math.random() * 1.2,
+        });
+      }
+    }
+
+    spawnStarCollectBurst(x, y, count = 18) {
+      for (let i = 0; i < count; i++) {
+        if (this.particles.length >= this.maxParticles) {
+          this.particles.shift();
+        }
+        const angle = (i / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.3;
+        const speed = 90 + Math.random() * 140;
+        this.particles.push({
+          x: x,
+          y: y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 30,
+          radius: 2.0 + Math.random() * 2.2,
+          color: Math.random() > 0.4 ? '#ffd700' : (Math.random() > 0.5 ? '#fff3b0' : '#ff9e00'),
+          life: 1.1,
+          decay: 2.2 + Math.random() * 0.9,
+        });
+      }
+    }
+
     update(dt) {
       for (let i = this.particles.length - 1; i >= 0; i--) {
         const p = this.particles[i];
@@ -879,11 +1176,28 @@
       this.hudLevelProgress = document.getElementById('hudLevelProgress');
       this.hudScore = document.getElementById('hudScore');
       this.hudBest = document.getElementById('hudBest');
+      this.hudRunOrbs = document.getElementById('hudRunOrbs');
+      this.hudRunStars = document.getElementById('hudRunStars');
+
+      // Menu stats
       this.menuBestScore = document.getElementById('menuBestScore');
       this.menuHighestLevel = document.getElementById('menuHighestLevel');
+      this.menuTotalOrbs = document.getElementById('menuTotalOrbs');
+      this.menuTotalStars = document.getElementById('menuTotalStars');
+
+      // Results overlay elements
       this.finalScore = document.getElementById('finalScore');
       this.finalBestScore = document.getElementById('finalBestScore');
       this.finalLevelReached = document.getElementById('finalLevelReached');
+      this.finalHighestLevel = document.getElementById('finalHighestLevel');
+      this.finalRunOrbs = document.getElementById('finalRunOrbs');
+      this.finalRunStars = document.getElementById('finalRunStars');
+      this.finalTotalOrbs = document.getElementById('finalTotalOrbs');
+      this.finalTotalStars = document.getElementById('finalTotalStars');
+      this.starIcon1 = document.getElementById('starIcon1');
+      this.starIcon2 = document.getElementById('starIcon2');
+      this.starIcon3 = document.getElementById('starIcon3');
+      this.ratingVerdictText = document.getElementById('ratingVerdictText');
       this.gameOverSubtext = document.getElementById('gameOverSubtext');
       this.newBestTag = document.getElementById('newBestTag');
 
@@ -899,6 +1213,7 @@
       this.restartFromPauseBtn = document.getElementById('restartFromPauseBtn');
       this.pauseBtn = document.getElementById('pauseBtn');
       this.soundBtn = document.getElementById('soundBtn');
+      this.menuReturnBtn = document.getElementById('menuReturnBtn');
 
       // Mobile Touch Buttons
       this.touchUp = document.getElementById('touchUp');
@@ -920,6 +1235,11 @@
       this.platforms = [];
       this.highestGeneratedY = 260;
 
+      // Collectibles Arrays (World Space)
+      this.collectibles = [];
+      this.specialStars = [];
+      this.lastStarGeneratedY = 600;
+
       // Input State
       this.keys = {
         left: false,
@@ -935,6 +1255,14 @@
       this.highestLevelCompleted = this.loadHighestLevel();
       this.bestScore = this.loadBestScore();
       this.isNewRecord = false;
+
+      // Collectibles Counters (Run & Persistent)
+      this.runOrbs = 0;
+      this.runStars = 0;
+      this.totalOrbs = this.loadTotalOrbs();
+      this.totalStars = this.loadTotalStars();
+      this.levelBestRatings = this.loadLevelRatings();
+      this.runResultsProcessed = false;
 
       // Loop Timing
       this.lastTime = 0;
@@ -980,6 +1308,81 @@
       try {
         localStorage.setItem(STORAGE_KEY_LEVEL, val.toString());
       } catch (e) {}
+    }
+
+    loadTotalOrbs() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_TOTAL_ORBS);
+        return saved ? Math.max(0, parseInt(saved, 10) || 0) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    saveTotalOrbs(val) {
+      try {
+        localStorage.setItem(STORAGE_KEY_TOTAL_ORBS, Math.max(0, val).toString());
+      } catch (e) {}
+    }
+
+    loadTotalStars() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_TOTAL_STARS);
+        return saved ? Math.max(0, parseInt(saved, 10) || 0) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    saveTotalStars(val) {
+      try {
+        localStorage.setItem(STORAGE_KEY_TOTAL_STARS, Math.max(0, val).toString());
+      } catch (e) {}
+    }
+
+    loadLevelRatings() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_LEVEL_RATINGS);
+        return saved ? JSON.parse(saved) || {} : {};
+      } catch (e) {
+        return {};
+      }
+    }
+
+    saveLevelRatings(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY_LEVEL_RATINGS, JSON.stringify(data || {}));
+      } catch (e) {}
+    }
+
+    // Three-Star Performance Rating Calculator (Configured via PERFORMANCE_RATING_CONFIG)
+    calculatePerformanceRating(score, runOrbs, runStars) {
+      const cfg = PERFORMANCE_RATING_CONFIG;
+      let stars = 0;
+
+      // Tier 1: Minimum height threshold
+      if (score >= cfg.star1.minHeight) {
+        stars = 1;
+      } else {
+        return 0;
+      }
+
+      // Tier 2: Higher height AND orb collection requirement
+      if (score >= cfg.star2.minHeight && runOrbs >= cfg.star2.minOrbs) {
+        stars = 2;
+      } else {
+        return stars;
+      }
+
+      // Tier 3: Target height AND demanding collectible challenge
+      if (
+        score >= cfg.star3.minHeight &&
+        (runOrbs >= cfg.star3.minOrbs || runStars >= cfg.star3.minSpecialStars)
+      ) {
+        stars = 3;
+      }
+
+      return stars;
     }
 
     toggleSound() {
@@ -1056,6 +1459,12 @@
       this.level = 1;
       this.cameraY = 0;
       this.isNewRecord = false;
+      this.runOrbs = 0;
+      this.runStars = 0;
+      this.collectibles = [];
+      this.specialStars = [];
+      this.lastStarGeneratedY = 600;
+      this.runResultsProcessed = false;
       this.newBestTag.classList.add('hidden');
       if (this.levelBanner) this.levelBanner.classList.add('hidden');
 
@@ -1073,6 +1482,10 @@
         new Platform(230, 260, 140, 16, 0, 0, CANVAS_WIDTH, null),
       ];
       this.highestGeneratedY = 260;
+
+      // Spawn starter energy orbs on intro tiers (safe, reachable)
+      this.collectibles.push(new CollectibleOrb(150, 395));
+      this.collectibles.push(new CollectibleOrb(300, 215));
 
       // Reset theme instantly to Level 1
       this.themeManager.setLevel(1, true);
@@ -1095,10 +1508,11 @@
     }
 
     triggerGameOver(reason = 'The orb fell into the void') {
-      if (this.currentState === STATE.GAMEOVER) return;
+      // Prevent duplicate processing if triggered multiple times
+      if (this.currentState === STATE.GAMEOVER || this.runResultsProcessed) return;
+      this.runResultsProcessed = true;
 
       this.setGameState(STATE.GAMEOVER);
-      this.sound.playGameOver();
       this.resetHeldKeys();
 
       // Check for new best record
@@ -1117,18 +1531,73 @@
         this.saveHighestLevel(this.highestLevelCompleted);
       }
 
-      this.finalScore.textContent = this.score;
-      this.finalBestScore.textContent = this.bestScore;
-      this.finalLevelReached.textContent = this.level;
+      // 1. Calculate Three-Star Performance Rating for this run
+      const rating = this.calculatePerformanceRating(this.score, this.runOrbs, this.runStars);
+
+      // 2. Add run collectibles to persistent lifetime totals EXACTLY ONCE
+      this.totalOrbs += this.runOrbs;
+      this.totalStars += this.runStars;
+      this.saveTotalOrbs(this.totalOrbs);
+      this.saveTotalStars(this.totalStars);
+
+      // 3. Update level milestone achievement ratings (persist best star rating per level completed)
+      for (let lvl = 1; lvl <= this.level; lvl++) {
+        const prevRating = this.levelBestRatings[lvl] || 0;
+        if (rating > prevRating) {
+          this.levelBestRatings[lvl] = rating;
+        }
+      }
+      this.saveLevelRatings(this.levelBestRatings);
+
+      // 4. Update Three-Star Performance Board in Results UI
+      const starIcons = [this.starIcon1, this.starIcon2, this.starIcon3];
+      starIcons.forEach((starElem, idx) => {
+        if (!starElem) return;
+        if (idx < rating) {
+          starElem.classList.add('earned');
+        } else {
+          starElem.classList.remove('earned');
+        }
+      });
+
+      if (this.ratingVerdictText) {
+        if (rating === 3) {
+          this.ratingVerdictText.textContent = '3 STARS EARNED! PERFECT CLIMB';
+        } else if (rating === 2) {
+          this.ratingVerdictText.textContent = '2 STARS EARNED';
+        } else if (rating === 1) {
+          this.ratingVerdictText.textContent = '1 STAR EARNED';
+        } else {
+          this.ratingVerdictText.textContent = 'NO STARS EARNED';
+        }
+      }
+
+      // 5. Update Results Screen Detailed Stats Grid
+      if (this.finalScore) this.finalScore.textContent = this.score;
+      if (this.finalBestScore) this.finalBestScore.textContent = this.bestScore;
+      if (this.finalLevelReached) this.finalLevelReached.textContent = this.level;
+      if (this.finalHighestLevel) this.finalHighestLevel.textContent = this.highestLevelCompleted;
+      if (this.finalRunOrbs) this.finalRunOrbs.textContent = this.runOrbs;
+      if (this.finalRunStars) this.finalRunStars.textContent = this.runStars;
+      if (this.finalTotalOrbs) this.finalTotalOrbs.textContent = this.totalOrbs;
+      if (this.finalTotalStars) this.finalTotalStars.textContent = this.totalStars;
       if (this.gameOverSubtext) this.gameOverSubtext.textContent = reason;
+
+      // Play results screen audio fanfare reflecting rating
+      this.sound.playResultsScreen(rating);
+
       this.updateScoreDisplays();
     }
 
     updateScoreDisplays() {
       this.hudScore.textContent = this.score;
       this.hudBest.textContent = this.bestScore;
-      this.menuBestScore.textContent = this.bestScore;
+      if (this.hudRunOrbs) this.hudRunOrbs.textContent = this.runOrbs;
+      if (this.hudRunStars) this.hudRunStars.textContent = this.runStars;
+      if (this.menuBestScore) this.menuBestScore.textContent = this.bestScore;
       if (this.menuHighestLevel) this.menuHighestLevel.textContent = this.highestLevelCompleted;
+      if (this.menuTotalOrbs) this.menuTotalOrbs.textContent = this.totalOrbs;
+      if (this.menuTotalStars) this.menuTotalStars.textContent = this.totalStars;
       if (this.hudLevelText) this.hudLevelText.textContent = `LVL ${this.level}`;
       this.applyThemeToHUD();
     }
@@ -1251,11 +1720,66 @@
         this.platforms.push(
           new Platform(x, newY, width, 16, vx, platMinX, platMaxX, spike)
         );
+
+        // --- Collectible Energy Orbs Procedural Spawning ---
+        // 1. Orbs placed safely near/above platforms (65% chance)
+        if (Math.random() < 0.65) {
+          let orbX = x + width * 0.5;
+          if (spike) {
+            // Position orb strictly over the safe non-hazardous side
+            if (spike.side === 'left') {
+              const safeLeft = x + spike.width + 10;
+              const safeRight = x + width - 10;
+              orbX = (safeLeft + safeRight) * 0.5;
+            } else {
+              const safeLeft = x + 10;
+              const safeRight = x + width - spike.width - 10;
+              orbX = (safeLeft + safeRight) * 0.5;
+            }
+          } else if (width > 130) {
+            // Slight dynamic variation on wider platforms
+            orbX = x + 25 + Math.random() * (width - 50);
+          }
+          this.collectibles.push(new CollectibleOrb(orbX, newY - 32));
+        }
+
+        // 2. Aerial gap orbs between platforms (skill / risk path, 25% chance)
+        if (Math.random() < 0.25) {
+          const gapX = 45 + Math.random() * (CANVAS_WIDTH - 90);
+          const gapY = newY + spacing * 0.5;
+          this.collectibles.push(new CollectibleOrb(gapX, gapY));
+        }
+
+        // --- Special Star Collectibles Spawning (Rare & Prestigious) ---
+        // Minimum altitude distance between star spawns (>= 720px)
+        const starDist = this.lastStarGeneratedY - newY;
+        if (starDist >= 720) {
+          const shouldSpawnStar = (starDist >= 950) || (Math.random() < 0.7);
+          if (shouldSpawnStar) {
+            let starX = x + width * 0.5;
+            let starY = newY - 48;
+
+            if (spike) {
+              if (spike.side === 'left') {
+                starX = x + spike.width + 14 + (width - spike.width - 28) * 0.5;
+              } else {
+                starX = x + 14 + (width - spike.width - 28) * 0.5;
+              }
+            }
+
+            // Keep within playable horizontal viewport bounds
+            starX = Math.max(35, Math.min(CANVAS_WIDTH - 35, starX));
+            this.specialStars.push(new CollectibleStar(starX, starY));
+            this.lastStarGeneratedY = newY;
+          }
+        }
       }
 
-      // Memory cleanup: Recycle/remove platforms far below camera view
+      // Memory cleanup: Recycle/remove platforms & collectibles far below camera view
       const removeThresholdY = this.cameraY + CANVAS_HEIGHT + 240;
       this.platforms = this.platforms.filter(p => p.y <= removeThresholdY);
+      this.collectibles = this.collectibles.filter(o => o.y <= removeThresholdY && !o.collected);
+      this.specialStars = this.specialStars.filter(s => s.y <= removeThresholdY && !s.collected);
     }
 
     // --- Event Listeners ---
@@ -1328,6 +1852,12 @@
       this.pauseBtn.addEventListener('click', () => this.togglePause());
       if (this.soundBtn) {
         this.soundBtn.addEventListener('click', () => this.toggleSound());
+      }
+      if (this.menuReturnBtn) {
+        this.menuReturnBtn.addEventListener('click', () => {
+          this.setGameState(STATE.MENU);
+          this.updateScoreDisplays();
+        });
       }
 
       // Touch Buttons for Mobile
@@ -1446,6 +1976,40 @@
         }
       }
 
+      // 5b. Energy Orb Collectibles Collision Check
+      for (let i = this.collectibles.length - 1; i >= 0; i--) {
+        const orb = this.collectibles[i];
+        if (orb.collected) continue;
+        const orbY = orb.getVisualY();
+        const dx = this.ball.x - orb.x;
+        const dy = this.ball.y - orbY;
+        const hitDist = this.ball.radius + orb.radius + 4;
+        if (dx * dx + dy * dy <= hitDist * hitDist) {
+          orb.collected = true;
+          this.runOrbs++;
+          this.sound.playOrbCollect();
+          this.particles.spawnOrbCollectSparks(orb.x, orbY);
+          this.collectibles.splice(i, 1);
+        }
+      }
+
+      // 5c. Special Star Collectibles Collision Check
+      for (let i = this.specialStars.length - 1; i >= 0; i--) {
+        const star = this.specialStars[i];
+        if (star.collected) continue;
+        const starY = star.getVisualY();
+        const dx = this.ball.x - star.x;
+        const dy = this.ball.y - starY;
+        const hitDist = this.ball.radius + star.radius + 5;
+        if (dx * dx + dy * dy <= hitDist * hitDist) {
+          star.collected = true;
+          this.runStars++;
+          this.sound.playStarCollect();
+          this.particles.spawnStarCollectBurst(star.x, starY);
+          this.specialStars.splice(i, 1);
+        }
+      }
+
       // 6. Consistent 2-Way Platform Collision Handling
       for (let i = 0; i < this.platforms.length; i++) {
         const p = this.platforms[i];
@@ -1544,6 +2108,12 @@
       for (let i = 0; i < this.platforms.length; i++) {
         this.platforms[i].updateVisuals(dt);
       }
+      for (let i = 0; i < this.collectibles.length; i++) {
+        this.collectibles[i].update(dt);
+      }
+      for (let i = 0; i < this.specialStars.length; i++) {
+        this.specialStars[i].update(dt);
+      }
       this.ball.updateVisuals(dt);
 
       // Smooth level theme transition
@@ -1623,6 +2193,16 @@
       // Render Platforms & Spikes (all platforms automatically take active level theme)
       for (let i = 0; i < this.platforms.length; i++) {
         this.platforms[i].render(this.ctx, theme);
+      }
+
+      // Render Collectible Energy Orbs
+      for (let i = 0; i < this.collectibles.length; i++) {
+        this.collectibles[i].render(this.ctx);
+      }
+
+      // Render Special Star Collectibles
+      for (let i = 0; i < this.specialStars.length; i++) {
+        this.specialStars[i].render(this.ctx);
       }
 
       // Render Particles

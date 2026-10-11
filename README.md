@@ -65,6 +65,7 @@ No compilation or npm packages required! Simply:
   - **Hazard Collision**: Crunchy impact crunch upon hitting a spike.
   - **Game Over**: Descending electronic tone when falling or shattered.
   - **Air Jump & Head Bump**: Synth whoosh on air jump and metallic thud on underside bumps.
+  - **Collectible Chimes & Fanfare**: Crystal chime on orb collection, celestial arpeggio on special stars, and chord fanfares on the results board.
 - **Mute Toggle**: Quick sound toggle icon in the top corner (or press <kbd>M</kbd>), with preferences persisted in `localStorage`.
 
 ### 6. Preserved Core Physics & Controls
@@ -73,14 +74,43 @@ No compilation or npm packages required! Simply:
 - **Consistent 2-Way Collisions**: Landing on top surfaces triggers bounces; hitting undersides stops the ball and deflects it downward without glitching.
 - **Moving Platforms**: Deterministic horizontal patrol with moving platform inertia transfer during landing frames.
 
+### 7. Collectible Energy Orbs & Special Stars
+- **Glowing Energy Orbs**:
+  - Small, bright cyan orbs with subtle floating and pulsing animations.
+  - Procedurally spawned throughout the world near platforms, between platforms, and in aerial gaps.
+  - Fair placement: never generated inside spikes or hazardous platform zones.
+  - Touch collection awards run orbs (displayed in the top HUD) and plays a crisp synth pop chime.
+  - Persistent total orbs accumulated across runs in `localStorage` (`bounce_arcade_total_orbs`).
+- **Special Star Collectibles**:
+  - Rare, glowing golden 5-point stars rotating smoothly with a radiant celestial aura.
+  - Placed at selected milestones and challenging platform layouts (spaced at least 700px apart).
+  - Collecting awards run stars and plays a radiant celestial arpeggio with golden spark bursts.
+  - Persistent total collectible stars stored in `localStorage` (`bounce_arcade_total_stars`).
+  - Strict separation: collectible stars are separate from performance rating stars.
+
+### 8. Three-Star Performance Rating & Dedicated Results Screen
+- **Configurable Performance Rating Formula** (`PERFORMANCE_RATING_CONFIG`):
+  - **1 Star**: Minimum height milestone reached ($\ge 300\text{m}$).
+  - **2 Stars**: Higher altitude ($\ge 750\text{m}$) AND energy orb requirement ($\ge 5\text{ orbs}$).
+  - **3 Stars**: Target altitude ($\ge 1400\text{m}$) AND demanding collectible challenge ($\ge 12\text{ orbs}$ OR $\ge 1\text{ special star}$).
+- **Dedicated Results Overlay**:
+  - Triggered at the end of each run upon falling into the void or colliding with a hazard.
+  - Displays exactly three large rating stars: earned stars shine with bright glowing gold and pop animation, while unearned stars remain dim.
+  - Clear verdict banner: e.g. `2 STARS EARNED` or `3 STARS EARNED! PERFECT CLIMB`.
+  - Comprehensive run and lifetime stats grid: Altitude, Level Reached, Run Orbs, Run Stars, Record Altitude, Max Level, Total Orbs, and Total Stars.
+  - Guaranteed single-award lifecycle prevents duplicate awards on death.
+  - Action buttons: "CLIMB AGAIN" for an immediate fresh run and "MAIN MENU" to return to the title screen.
+- **Persistent Level Milestone Achievements**:
+  - Tracks every level milestone reached and preserves the player's personal best star rating per level in `localStorage` (`bounce_arcade_level_ratings`).
+
 ---
 
 ## 📁 Project Structure
 
 ```
 bounce/
-├── index.html      # Game layout, Level Progression HUD, Sound toggle, Canvas
-├── style.css       # Dark navy & neon aesthetic, responsive layout, glassmorphism UI
-├── game.js         # Modular engine: Camera, Procedural Platforms, Hazards, Web Audio
-└── README.md       # Documentation and launch instructions
+├── index.html      # Game layout, HUD (orbs & stars), Three-Star Results Overlay, Canvas
+├── style.css       # Dark navy & neon aesthetic, rating board, star animations, glassmorphism UI
+├── game.js         # Modular engine: Camera, Collectibles, Hazards, Rating System, Web Audio
+└── README.md       # Comprehensive documentation and launch instructions
 ```

@@ -225,6 +225,59 @@ html, body {
   text-shadow: var(--neon-gold-glow);
 }
 
+/* Collectibles in HUD */
+.hud-collectibles-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(4, 8, 22, 0.45);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.hud-collectible-item {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.hud-orb-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 0 6px #00f0ff, 0 0 12px #00f0ff;
+  display: inline-block;
+  animation: orbGlowPulse 1.6s infinite alternate ease-in-out;
+}
+
+@keyframes orbGlowPulse {
+  0% { transform: scale(0.9); box-shadow: 0 0 5px #00f0ff; }
+  100% { transform: scale(1.15); box-shadow: 0 0 10px #00f0ff, 0 0 16px #00f0ff; }
+}
+
+.hud-star-glyph {
+  font-size: 0.9rem;
+  color: #ffd700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.9);
+  line-height: 1;
+}
+
+.hud-collectible-val {
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #00f0ff;
+  text-shadow: 0 0 6px rgba(0, 240, 255, 0.5);
+  line-height: 1;
+}
+
+.hud-collectible-val.gold-accent {
+  color: #ffd700;
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.6);
+}
+
 /* Action Controls (Right Corner: Sound & Pause) */
 .hud-actions-group {
   display: flex;
@@ -486,33 +539,131 @@ html, body {
   text-shadow: var(--neon-gold-glow);
 }
 
-/* Score Summary Card */
+.cyan-accent {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+}
+
+.star-accent {
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.75);
+}
+
+/* Three-Star Performance Rating Board */
+.performance-rating-board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 6px 0 10px 0;
+  width: 100%;
+}
+
+.rating-stars-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+}
+
+.rating-star {
+  font-size: 2.8rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.16);
+  text-shadow: none;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: inline-block;
+  user-select: none;
+}
+
+.rating-star.earned {
+  color: #ffd700;
+  text-shadow: 
+    0 0 12px rgba(255, 215, 0, 0.9),
+    0 0 28px rgba(255, 209, 102, 0.65);
+  animation: starPop 0.45s ease-out forwards;
+}
+
+@keyframes starPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  65% { transform: scale(1.28); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.rating-verdict-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ffd700;
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.7);
+}
+
+/* Score Summary Card & Grid Layout */
 .score-summary-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   position: relative;
   border-color: rgba(168, 85, 247, 0.35);
+  padding: 12px 14px;
+  width: 100%;
 }
 
-.score-row {
+.score-grid-row {
   display: flex;
   justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.score-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  padding: 3px 6px;
+  background: rgba(255, 255, 255, 0.035);
+  padding: 6px 6px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.score-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(168, 85, 247, 0.4), transparent);
+  margin: 2px 0;
+}
+
+.meta-row .score-col {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+}
+
+.score-sub-label {
+  font-family: var(--font-display);
+  font-size: 0.68rem;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+}
+
+.score-sub-label strong {
+  color: #ffffff;
 }
 
 .score-row-label {
   font-family: var(--font-display);
-  font-size: 0.82rem;
-  letter-spacing: 1px;
+  font-size: 0.68rem;
+  letter-spacing: 1.2px;
   color: var(--text-muted);
 }
 
 .score-row-value {
   font-family: var(--font-display);
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   font-weight: 800;
+  line-height: 1.2;
 }
 
 .cyan-glow {
@@ -534,18 +685,27 @@ html, body {
   background: linear-gradient(90deg, #ff2a6d, #f59e0b);
   color: #fff;
   font-family: var(--font-display);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 2px;
-  padding: 5px 12px;
+  padding: 4px 10px;
   border-radius: 20px;
   box-shadow: 0 0 16px rgba(255, 42, 109, 0.6);
   animation: bounceTag 1s infinite alternate ease-in-out;
+  text-align: center;
 }
 
 @keyframes bounceTag {
   0% { transform: scale(0.96); }
   100% { transform: scale(1.04); }
+}
+
+.results-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
 }
 
 /* Buttons */
