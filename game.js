@@ -29,18 +29,25 @@
 
   // Three-Star Performance Rating Thresholds (Configurable in one place)
   const PERFORMANCE_RATING_CONFIG = {
-    STAR_1: {
+    star1: {
+      minHeight: 300,
       minAltitude: 300,
     },
-    STAR_2: {
+    star2: {
+      minHeight: 750,
       minAltitude: 750,
       minOrbs: 5,
     },
-    STAR_3: {
+    star3: {
+      minHeight: 1400,
       minAltitude: 1400,
       minOrbs: 12,
+      minSpecialStars: 1,
       orSpecialStars: 1,
     },
+    get STAR_1() { return this.star1; },
+    get STAR_2() { return this.star2; },
+    get STAR_3() { return this.star3; },
   };
 
   // Physics Parameters (World space)
@@ -1356,33 +1363,47 @@
     }
 
     // Three-Star Performance Rating Calculator (Configured via PERFORMANCE_RATING_CONFIG)
-    calculatePerformanceRating(score, runOrbs, runStars) {
-      const cfg = PERFORMANCE_RATING_CONFIG;
-      let stars = 0;
+    calculatePerformanceRating(score, runOrbs = 0, runStars = 0) {
+      try {
+        const cfg = PERFORMANCE_RATING_CONFIG || {};
+        const s1 = cfg.star1 || cfg.STAR_1 || { minHeight: 300, minAltitude: 300 };
+        const s2 = cfg.star2 || cfg.STAR_2 || { minHeight: 750, minAltitude: 750, minOrbs: 5 };
+        const s3 = cfg.star3 || cfg.STAR_3 || { minHeight: 1400, minAltitude: 1400, minOrbs: 12, minSpecialStars: 1, orSpecialStars: 1 };
 
-      // Tier 1: Minimum height threshold
-      if (score >= cfg.star1.minHeight) {
-        stars = 1;
-      } else {
+        const s1Alt = s1.minHeight ?? s1.minAltitude ?? 300;
+        const s2Alt = s2.minHeight ?? s2.minAltitude ?? 750;
+        const s2Orbs = s2.minOrbs ?? 5;
+        const s3Alt = s3.minHeight ?? s3.minAltitude ?? 1400;
+        const s3Orbs = s3.minOrbs ?? 12;
+        const s3Stars = s3.minSpecialStars ?? s3.orSpecialStars ?? 1;
+
+        // Tier 1: Minimum height threshold
+        if (score < s1Alt) {
+          return 0;
+        }
+
+        let stars = 1;
+
+        // Tier 2: Higher height AND orb collection requirement
+        if (score >= s2Alt && runOrbs >= s2Orbs) {
+          stars = 2;
+        } else {
+          return stars;
+        }
+
+        // Tier 3: Target height AND demanding collectible challenge
+        if (
+          score >= s3Alt &&
+          (runOrbs >= s3Orbs || runStars >= s3Stars)
+        ) {
+          stars = 3;
+        }
+
+        return stars;
+      } catch (err) {
+        console.error('Error in calculatePerformanceRating:', err);
         return 0;
       }
-
-      // Tier 2: Higher height AND orb collection requirement
-      if (score >= cfg.star2.minHeight && runOrbs >= cfg.star2.minOrbs) {
-        stars = 2;
-      } else {
-        return stars;
-      }
-
-      // Tier 3: Target height AND demanding collectible challenge
-      if (
-        score >= cfg.star3.minHeight &&
-        (runOrbs >= cfg.star3.minOrbs || runStars >= cfg.star3.minSpecialStars)
-      ) {
-        stars = 3;
-      }
-
-      return stars;
     }
 
     toggleSound() {
@@ -1637,7 +1658,9 @@
     // --- Procedural Generation & Recycling ---
     generatePlatformsAhead() {
       // Keep platforms generated at least 650px above camera viewport
-      while (this.highestGeneratedY > this.cameraY - 650) {
+      let generateLimit = 0;
+      while (this.highestGeneratedY > this.cameraY - 650 && generateLimit < 50) {
+        generateLimit++;
         // Consistent, bounded vertical gap (124px to 152px)
         const spacing = 124 + Math.random() * 28;
         const newY = this.highestGeneratedY - spacing;
@@ -2096,7 +2119,9 @@
       // Substepping prevents tunneling even with frame delays
       const maxSubDt = 0.007; // 7ms maximum per substep
       let remainingDt = dt;
-      while (remainingDt > 0) {
+      let stepLimit = 0;
+      while (remainingDt > 0.0001 && stepLimit < 20) {
+        stepLimit++;
         const subDt = Math.min(remainingDt, maxSubDt);
         this.physicsSubStep(subDt);
         remainingDt -= subDt;
@@ -2218,19 +2243,23 @@
 
     // --- Main Loop ---
     loop(currentTime) {
-      if (!this.lastTime) {
+      try {
+        if (!this.lastTime) {
+          this.lastTime = currentTime;
+        }
+
+        // Calculate delta time in seconds, clamped to 0.05s to prevent huge lag spikes
+        const dt = Math.min((currentTime - this.lastTime) / 1000, 0.05);
         this.lastTime = currentTime;
+
+        // Update & Render
+        this.update(dt);
+        this.render();
+      } catch (loopErr) {
+        console.error('Error in Bounce game loop:', loopErr);
+      } finally {
+        this.animationFrameId = requestAnimationFrame(this.loop);
       }
-
-      // Calculate delta time in seconds, clamped to 0.05s to prevent huge lag spikes
-      const dt = Math.min((currentTime - this.lastTime) / 1000, 0.05);
-      this.lastTime = currentTime;
-
-      // Update & Render
-      this.update(dt);
-      this.render();
-
-      this.animationFrameId = requestAnimationFrame(this.loop);
     }
   }
 
