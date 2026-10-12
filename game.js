@@ -62,13 +62,18 @@
 
   const BASE_ALTITUDE_Y = 620;      // Baseline world Y coordinate for altitude scoring
 
-  // Level Milestones Formula
+  // Level Milestones Formula (O(1) closed-form calculation: 100 * lvl^2 + 400 * lvl)
+  // Mathematically equivalent to sum_{i=1}^{lvl} (500 + (i - 1) * 200)
+  // Safely handles non-positive, non-integer, and non-numeric inputs
   function getLevelMilestone(lvl) {
-    let m = 0;
-    for (let i = 1; i <= lvl; i++) {
-      m += 500 + (i - 1) * 200;
-    }
-    return m;
+    const n = Math.floor(Number(lvl));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return 100 * n * n + 400 * n;
+  }
+
+  // Expose on global window object if available for auditing and external inspection
+  if (typeof window !== 'undefined') {
+    window.getLevelMilestone = getLevelMilestone;
   }
 
   // --- Level Neon Color Themes ---
