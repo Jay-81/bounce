@@ -23,60 +23,9 @@ No compilation or npm packages required! Simply:
 | **Move Right** | <kbd>&rarr;</kbd> or <kbd>D</kbd> | On-screen Right Arrow (D-Pad) |
 | **Air Jump (1x per bounce)** | <kbd>&uarr;</kbd> or <kbd>W</kbd> | On-screen Up Arrow (D-Pad) |
 | **Dive (Fast Fall)** | <kbd>&darr;</kbd> or <kbd>S</kbd> | On-screen Down Arrow (D-Pad) |
-| **AI Spectator Mode** | <kbd>B</kbd> | HUD Robot Icon / Menu "AI SPECTATOR" |
-| **Audit Suite Modal** | <kbd>T</kbd> | Header "AUDIT" / Menu "AUDIT SUITE" |
 | **Toggle Mute Sound** | <kbd>M</kbd> | Top-right Sound Icon |
 | **Pause / Resume** | <kbd>Esc</kbd> or <kbd>P</kbd> | Top-right Pause Icon |
-| **Start / Restart** | <kbd>Enter</kbd> or <kbd>Space</kbd> | "START CLIMB" / "CLIMB AGAIN" Button |
-
----
-
-## 🤖 AI Autoplayer & Spectator Mode
-
-Watch the game being played live by a high-skill automated AI player without touching the movement keys.
-
-### Key Capabilities
-- **Zero Physics Cheating**: Operates strictly within the game's standard physics engine ($g = 980\text{ px/s}^2$, $v_{\text{bounce}} = -660\text{ px/s}$, $v_{\text{air}} = -580\text{ px/s}$). No artificial speed, invulnerability, or teleportation.
-- **Progress-Aware Target Selection**: Evaluates multiple platform tiers simultaneously, prioritizing immediate progressive climb tiers ($\Delta h \in [80, 210\text{px}]$) while keeping nearby lower platforms strictly as fallback recovery options.
-- **Waypoint Ascent Navigation**: Detects overhead platform undersides during ball ascent and routes horizontal steering through clear side corridors, completely preventing ceiling head-bump deflections.
-- **Anti-Stall Loop Prevention**: Tracks recent landings across multiple bounces. If the AI detects repeated landings on the same tier, it temporarily penalizes the stalled target, recalculates alternatives, and fires an apex boost to break out.
-- **Parabolic Trajectory Projection**: Calculates exact quadratic descent curves in real time for moving and stationary platforms.
-- **Moving Platform Interception**: Projects moving platforms forward in time ($p.x(t)$ with bouncing patrol limits) to time landings accurately.
-- **Hazard Spike Avoidance**: Recognizes spike obstacles on platform edges and steers towards designated safe landing zones with repulsion margins.
-- **Tactical Air Jump**:
-  - *Apex Boost*: Deploys the single air jump near ascent peak ($v_y \approx 0$) to reach higher platforms.
-  - *Stall Breakout*: Deploys an apex boost when repeated landings are detected to clear blocked tiers.
-  - *Emergency Descent Catch*: Deploys an emergency recovery jump if falling toward the void without an imminent platform landing.
-- **Safe Collectible Gathering**: Gathers reachable glowing energy orbs and special stars only when deviation maintains a safe landing margin.
-- **Spectator Experience & Live Diagnostics**:
-  - Floating `SPECTATOR: AI PLAYING` badge with live status dot.
-  - Toggle live diagnostic overlay HUD (<kbd>D</kbd>) displaying target platform ID, target height, predicted landing X, current/max altitude, consecutive stall counter, air jump availability, and candidate rejection reasons.
-  - Immediate `STOP` button to return to manual play anytime.
-  - Seamless Pause (<kbd>Esc</kbd> or <kbd>P</kbd>) and Resume.
-  - Automated restart loop (1.8s delay after 3-star results board) for continuous hands-free spectator viewing.
-
----
-
-## 📊 Automated Gameplay Audit & Diagnostics Suite
-
-Run bounded, deterministic gameplay scenarios to verify game loop stability, reachability, and state consistency.
-
-### Automated Invariant Checks
-1. **Finite Physics**: Asserts on every frame that $x, y, v_x, v_y, \text{camY} \in \mathbb{R}$ (no `NaN` or `Infinity`).
-2. **Loop Health & RAF Continuity**: Monitors frame delta times to catch loop stalls or unexpected halts.
-3. **Platform Reachability**: Verifies all generated platform gaps do not exceed maximum reachable vertical limits ($\le 185\text{px}$).
-4. **Hazard Placement Integrity**: Verifies that collectibles never overlap with hazard spikes.
-5. **Single-Award Lifecycle**: Guarantees that collectible items and results screen awards are processed exactly once.
-6. **Overlay & Lifecycle**: Validates error-free handling across pause, resume, and restart transitions.
-
-### Configurable Test Parameters
-- **Target Level Goal**: Level 2, 3, 5, or 10.
-- **Max Duration**: 30s, 60s, 120s, or 300s.
-- **Max Attempts / Deaths**: 2, 3, 5, or 10 runs.
-- **Safe Profile Mode (Enabled by default)**: Backs up the player's personal high scores, ratings, and total collectibles, ensuring test runs do not alter user records.
-
-### Exportable Diagnostic Report
-Click **📋 COPY MARKDOWN REPORT** in the Audit Modal to export a complete GitHub-formatted diagnostic report containing the executive summary, invariant check results, detected anomalies, and timestamped event logs.
+| **Start / Restart** | <kbd>Enter</kbd> or <kbd>Space</kbd> | "CLIMB" / "CLIMB AGAIN" Button |
 
 ---
 
@@ -160,9 +109,8 @@ Click **📋 COPY MARKDOWN REPORT** in the Audit Modal to export a complete GitH
 
 ```
 bounce/
-├── index.html      # Game layout, HUD, Spectator Badges, Audit Modal, Three-Star Overlay
-├── style.css       # Dark navy & cyber neon aesthetic, modals, badges, rating animations
+├── index.html      # Game layout, HUD, Mobile Controls, and Results Screen
+├── style.css       # Midnight navy & cyber neon aesthetic, typography, and animations
 ├── game.js         # Core engine: Physics, Camera, Platforms, Audio, Progression, Collectibles
-├── autoplayer.js   # AI Autoplayer, Trajectory Prediction, Invariant Audits, Telemetry Reporter
-└── README.md       # Comprehensive documentation and launch instructions
+└── README.md       # Game documentation, controls, and architecture reference
 ```

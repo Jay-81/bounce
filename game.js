@@ -55,7 +55,8 @@
   const BOUNCE_VELOCITY = -660;      // Automatic upward launch on platform landing (px/s)
   const AIR_JUMP_IMPULSE = -580;     // Single fixed air-jump upward impulse (px/s)
   const MOVE_ACCEL_X = 2200;        // Horizontal steering acceleration (px/s^2)
-  const MOVE_DECEL_X = 1600;        // Horizontal friction/deceleration (px/s^2)
+  const MOVE_BRAKE_ACCEL_X = 3600;  // Active counter-steering braking acceleration for crisp direction turnaround (px/s^2)
+  const MOVE_DECEL_X = 1800;        // Horizontal friction/deceleration (px/s^2)
   const MAX_SPEED_X = 340;          // Terminal horizontal speed (px/s)
   const STEER_ACCEL_DOWN = 1600;    // Downward dive acceleration on holding Down/S (px/s^2)
   const MAX_FALL_SPEED = 880;       // Terminal downward vertical speed (px/s)
@@ -71,9 +72,54 @@
     return 100 * n * n + 400 * n;
   }
 
-  // Expose on global window object if available for auditing and external inspection
+  // Expose on global window object if available
   if (typeof window !== 'undefined') {
     window.getLevelMilestone = getLevelMilestone;
+  }
+
+  // Helper for responsive, non-blocking button taps on desktop & mobile
+  // Listens to touchend (preventing 300ms delays and synthetic click suppression under touch-action)
+  // Debounces duplicate execution from subsequent synthetic clicks with 350ms window
+  function bindButtonAction(btn, action) {
+    if (!btn) return;
+    let lastActionTime = -1000;
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchMovedTooFar = false;
+
+    btn.addEventListener('touchstart', (e) => {
+      if (e && e.changedTouches && e.changedTouches[0]) {
+        touchStartX = e.changedTouches[0].clientX;
+        touchStartY = e.changedTouches[0].clientY;
+        touchMovedTooFar = false;
+      }
+    }, { passive: true });
+
+    btn.addEventListener('touchmove', (e) => {
+      if (e && e.changedTouches && e.changedTouches[0]) {
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (dx * dx + dy * dy > 16 * 16) {
+          touchMovedTooFar = true;
+        }
+      }
+    }, { passive: true });
+
+    btn.addEventListener('touchend', (e) => {
+      if (touchMovedTooFar) return;
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (now - lastActionTime < 350) return;
+      lastActionTime = now;
+      if (e && e.cancelable) e.preventDefault();
+      action(e);
+    }, { passive: false });
+
+    btn.addEventListener('click', (e) => {
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      if (now - lastActionTime < 350) return;
+      lastActionTime = now;
+      action(e);
+    });
   }
 
   // --- Level Neon Color Themes ---
@@ -223,6 +269,18 @@
           this.ctx = new AudioContext();
         }
       }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    }
+
+    suspend() {
+      if (this.ctx && this.ctx.state === 'running') {
+        this.ctx.suspend().catch(() => {});
+      }
+    }
+
+    resume() {
       if (this.ctx && this.ctx.state === 'suspended') {
         this.ctx.resume().catch(() => {});
       }
@@ -853,6 +911,26 @@
       ctx.lineWidth = 3;
       ctx.stroke();
 
+      // Distinct glowing boundary edge caps for safe landing zone readability
+      let safeEdgeL = this.x + 2;
+      let safeEdgeR = this.x + this.width - 2;
+      if (this.spike) {
+        if (this.spike.side === 'left') {
+          safeEdgeL = this.x + this.spike.width + 2;
+        } else {
+          safeEdgeR = this.x + this.width - this.spike.width - 2;
+        }
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(safeEdgeL, drawY - 2);
+      ctx.lineTo(safeEdgeL, drawY + 6);
+      ctx.moveTo(safeEdgeR, drawY - 2);
+      ctx.lineTo(safeEdgeR, drawY + 6);
+      ctx.strokeStyle = this.impactPulse > 0 ? '#ffffff' : primaryAlpha(0.85);
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+
       // Impact halo when ball lands or bumps
       if (this.impactPulse > 0) {
         ctx.beginPath();
@@ -1109,13 +1187,15 @@
   class Background {
     constructor() {
       this.stars = [];
-      for (let i = 0; i < 35; i++) {
+      for (let i = 0; i < 40; i++) {
+        const isCyan = Math.random() > 0.45;
         this.stars.push({
           x: Math.random() * CANVAS_WIDTH,
           y: Math.random() * CANVAS_HEIGHT,
-          radius: 0.8 + Math.random() * 1.4,
+          radius: 0.75 + Math.random() * 1.35,
           alpha: 0.2 + Math.random() * 0.6,
-          parallax: 0.2 + Math.random() * 0.5,
+          parallax: 0.18 + Math.random() * 0.5,
+          colorPrefix: isCyan ? 'rgba(56, 189, 248, ' : 'rgba(192, 132, 252, ',
         });
       }
     }
@@ -1123,16 +1203,24 @@
     render(ctx, cameraY) {
       ctx.save();
 
-      // Deep dark navy backdrop
+      // Deep dark navy backdrop with atmospheric cyber lighting
       const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-      bgGrad.addColorStop(0, '#050711');
-      bgGrad.addColorStop(0.5, '#0a0f26');
-      bgGrad.addColorStop(1, '#060814');
+      bgGrad.addColorStop(0, '#03050e');
+      bgGrad.addColorStop(0.35, '#070c22');
+      bgGrad.addColorStop(0.75, '#080d26');
+      bgGrad.addColorStop(1, '#040612');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
+      // Subtle atmospheric upper ambient glow
+      const ambientAura = ctx.createRadialGradient(CANVAS_WIDTH * 0.5, 0, 10, CANVAS_WIDTH * 0.5, 0, 280);
+      ambientAura.addColorStop(0, 'rgba(124, 58, 237, 0.08)');
+      ambientAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = ambientAura;
+      ctx.fillRect(0, 0, CANVAS_WIDTH, 280);
+
       // Subtle cyber grid lines that scroll seamlessly with camera
-      ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.038)';
       ctx.lineWidth = 1;
       const gridSize = 40;
 
@@ -1153,7 +1241,7 @@
         ctx.stroke();
       }
 
-      // Floating cyber particles / stars with parallax
+      // Floating ambient cyber dust & stars with parallax
       for (let i = 0; i < this.stars.length; i++) {
         const star = this.stars[i];
         // Calculate screen Y with parallax wrapping
@@ -1161,7 +1249,7 @@
 
         ctx.beginPath();
         ctx.arc(star.x, screenStarY, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(168, 85, 247, ${star.alpha})`;
+        ctx.fillStyle = `${star.colorPrefix}${star.alpha})`;
         ctx.fill();
       }
 
@@ -1227,11 +1315,18 @@
       this.soundBtn = document.getElementById('soundBtn');
       this.menuReturnBtn = document.getElementById('menuReturnBtn');
 
-      // Mobile Touch Buttons
+      // Mobile Floating Controls Elements & Multi-Touch State
+      this.touchControls = document.getElementById('touchControls');
       this.touchUp = document.getElementById('touchUp');
       this.touchDown = document.getElementById('touchDown');
       this.touchLeft = document.getElementById('touchLeft');
       this.touchRight = document.getElementById('touchRight');
+      this.heldPointers = {
+        left: new Set(),
+        right: new Set(),
+        down: new Set(),
+        jump: new Set(),
+      };
 
       // Game Entities & Components
       this.sound = new SoundSynth();
@@ -1280,12 +1375,9 @@
       this.lastTime = 0;
       this.animationFrameId = null;
 
-      // Autoplayer & Automated Audit Suite References (bound by autoplayer.js)
-      this.autoplayer = null;
-      this.auditManager = null;
-
       // Initialize
       this.setupEventListeners();
+      this.setupMobileControls();
       this.updateSoundButtonUI();
       this.updateScoreDisplays();
       this.setGameState(STATE.MENU);
@@ -1461,6 +1553,9 @@
 
     // --- State Transitions ---
     setGameState(newState) {
+      if (newState !== STATE.PLAYING) {
+        this.resetHeldKeys();
+      }
       this.currentState = newState;
 
       // Screen Overlays
@@ -1475,6 +1570,12 @@
 
       // HUD Visibility
       this.gameHud.style.display = (newState === STATE.PLAYING || newState === STATE.PAUSED) ? 'flex' : 'none';
+
+      // Floating Mobile Controls Visibility (Active during gameplay only)
+      if (this.touchControls) {
+        const isPlaying = (newState === STATE.PLAYING);
+        this.touchControls.classList.toggle('controls-inactive', !isPlaying);
+      }
 
       // Blur / Unfocus buttons so Enter key doesn't trigger unexpected clicks
       if (document.activeElement && document.activeElement.blur) {
@@ -1524,10 +1625,6 @@
       // Generate initial buffer of platforms above Tier 2
       this.generatePlatformsAhead();
 
-      if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.onGameStart) {
-        this.autoplayer.onGameStart();
-      }
-
       this.updateScoreDisplays();
       this.setGameState(STATE.PLAYING);
     }
@@ -1545,14 +1642,6 @@
       // Prevent duplicate processing if triggered multiple times
       if (this.currentState === STATE.GAMEOVER || this.runResultsProcessed) return;
       this.runResultsProcessed = true;
-
-      // Telemetry Hooks for Audit Manager & Autoplayer
-      if (this.auditManager && this.auditManager.active) {
-        this.auditManager.onGameOver(reason);
-      }
-      if (this.autoplayer && this.autoplayer.enabled) {
-        this.autoplayer.onGameOver();
-      }
 
       this.setGameState(STATE.GAMEOVER);
       this.resetHeldKeys();
@@ -1603,6 +1692,7 @@
       });
 
       if (this.ratingVerdictText) {
+        this.ratingVerdictText.classList.toggle('has-stars', rating > 0);
         if (rating === 3) {
           this.ratingVerdictText.textContent = '3 STARS EARNED! PERFECT CLIMB';
         } else if (rating === 2) {
@@ -1664,6 +1754,24 @@
       this.keys.left = false;
       this.keys.right = false;
       this.keys.down = false;
+      if (this.heldPointers) {
+        this.heldPointers.left.clear();
+        this.heldPointers.right.clear();
+        this.heldPointers.down.clear();
+        this.heldPointers.jump.clear();
+      }
+      const touchBtns = [this.touchLeft, this.touchRight, this.touchDown, this.touchUp];
+      for (let i = 0; i < touchBtns.length; i++) {
+        const btn = touchBtns[i];
+        if (btn) {
+          btn.classList.remove('touch-active');
+          if (btn.hasPointerCapture && btn.releasePointerCapture) {
+            try {
+              // Safety cleanup
+            } catch (e) {}
+          }
+        }
+      }
     }
 
     // Single edge-triggered air jump action (1 per airborne period)
@@ -1673,9 +1781,6 @@
         this.ball.applyAirJump();
         this.particles.spawnAirJumpRing(this.ball.x, this.ball.y);
         this.sound.playAirJump();
-        if (this.auditManager && this.auditManager.active) {
-          this.auditManager.onAirJump();
-        }
       }
     }
 
@@ -1888,58 +1993,165 @@
           if (this.currentState === STATE.PLAYING) {
             this.togglePause();
           }
+          if (this.sound) {
+            this.sound.suspend();
+          }
+        } else {
+          if (this.sound && this.sound.enabled) {
+            this.sound.resume();
+          }
         }
       });
 
-      // UI Buttons
-      this.playBtn.addEventListener('click', () => this.startNewGame());
-      this.resumeBtn.addEventListener('click', () => this.togglePause());
-      this.restartBtn.addEventListener('click', () => this.startNewGame());
-      this.restartFromPauseBtn.addEventListener('click', () => this.startNewGame());
-      this.pauseBtn.addEventListener('click', () => this.togglePause());
+      // UI Buttons (using bindButtonAction for fast mobile touchend + desktop click)
+      bindButtonAction(this.playBtn, () => this.startNewGame());
+      bindButtonAction(this.resumeBtn, () => this.togglePause());
+      bindButtonAction(this.restartBtn, () => this.startNewGame());
+      bindButtonAction(this.restartFromPauseBtn, () => this.startNewGame());
+      bindButtonAction(this.pauseBtn, () => this.togglePause());
       if (this.soundBtn) {
-        this.soundBtn.addEventListener('click', () => this.toggleSound());
+        bindButtonAction(this.soundBtn, () => this.toggleSound());
       }
       if (this.menuReturnBtn) {
-        this.menuReturnBtn.addEventListener('click', () => {
+        bindButtonAction(this.menuReturnBtn, () => {
           this.setGameState(STATE.MENU);
           this.updateScoreDisplays();
         });
       }
 
-      // Touch Buttons for Mobile
-      if (this.touchUp) {
-        const triggerUp = (e) => {
-          e.preventDefault();
-          this.sound.init();
-          this.handleAirJump();
+    }
+
+    // --- Mobile Floating Controls (Reliable Multi-Touch Pointer Events) ---
+    setupMobileControls() {
+      if (!this.heldPointers) {
+        this.heldPointers = {
+          left: new Set(),
+          right: new Set(),
+          down: new Set(),
+          jump: new Set(),
         };
-        this.touchUp.addEventListener('touchstart', triggerUp, { passive: false });
-        this.touchUp.addEventListener('mousedown', triggerUp);
       }
 
-      const bindSteerTouch = (elem, keyName) => {
-        if (!elem) return;
-        const start = (e) => {
-          e.preventDefault();
+      const bindSteeringButton = (btn, keyName) => {
+        if (!btn) return;
+        const pointerSet = this.heldPointers[keyName];
+
+        const onDown = (e) => {
+          if (e && e.cancelable) e.preventDefault();
           this.sound.init();
+          if (this.currentState !== STATE.PLAYING) return;
+
+          const pId = (e && e.pointerId !== undefined) ? e.pointerId : (e && e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].identifier : 0);
+          pointerSet.add(pId);
           this.keys[keyName] = true;
+          btn.classList.add('touch-active');
+
+          if (btn.setPointerCapture && e && e.pointerId !== undefined) {
+            try {
+              btn.setPointerCapture(e.pointerId);
+            } catch (err) {}
+          }
         };
-        const end = (e) => {
-          e.preventDefault();
-          this.keys[keyName] = false;
+
+        const onUp = (e) => {
+          if (e && e.cancelable) e.preventDefault();
+          const pId = (e && e.pointerId !== undefined) ? e.pointerId : (e && e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].identifier : 0);
+          pointerSet.delete(pId);
+
+          if (pointerSet.size === 0) {
+            this.keys[keyName] = false;
+            btn.classList.remove('touch-active');
+          }
+
+          if (btn.hasPointerCapture && btn.releasePointerCapture && e && e.pointerId !== undefined) {
+            try {
+              if (btn.hasPointerCapture(e.pointerId)) {
+                btn.releasePointerCapture(e.pointerId);
+              }
+            } catch (err) {}
+          }
         };
-        elem.addEventListener('touchstart', start, { passive: false });
-        elem.addEventListener('touchend', end, { passive: false });
-        elem.addEventListener('touchcancel', end, { passive: false });
-        elem.addEventListener('mousedown', start);
-        elem.addEventListener('mouseup', end);
-        elem.addEventListener('mouseleave', end);
+
+        const onCancel = (e) => {
+          onUp(e);
+        };
+
+        // Pointer Events
+        btn.addEventListener('pointerdown', onDown, { passive: false });
+        btn.addEventListener('pointerup', onUp, { passive: false });
+        btn.addEventListener('pointercancel', onCancel, { passive: false });
+        btn.addEventListener('lostpointercapture', onCancel, { passive: false });
+
+        // Touch event fallback
+        btn.addEventListener('touchstart', onDown, { passive: false });
+        btn.addEventListener('touchend', onUp, { passive: false });
+        btn.addEventListener('touchcancel', onCancel, { passive: false });
       };
 
-      bindSteerTouch(this.touchDown, 'down');
-      bindSteerTouch(this.touchLeft, 'left');
-      bindSteerTouch(this.touchRight, 'right');
+      const bindJumpButton = (btn) => {
+        if (!btn) return;
+        const pointerSet = this.heldPointers.jump;
+
+        const onDown = (e) => {
+          if (e && e.cancelable) e.preventDefault();
+          this.sound.init();
+          if (this.currentState !== STATE.PLAYING) return;
+
+          const pId = (e && e.pointerId !== undefined) ? e.pointerId : (e && e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].identifier : 0);
+          const wasEmpty = pointerSet.size === 0;
+          pointerSet.add(pId);
+
+          // Edge-triggered: exactly one action per physical button press
+          if (wasEmpty) {
+            this.handleAirJump();
+          }
+          btn.classList.add('touch-active');
+
+          if (btn.setPointerCapture && e && e.pointerId !== undefined) {
+            try {
+              btn.setPointerCapture(e.pointerId);
+            } catch (err) {}
+          }
+        };
+
+        const onUp = (e) => {
+          if (e && e.cancelable) e.preventDefault();
+          const pId = (e && e.pointerId !== undefined) ? e.pointerId : (e && e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].identifier : 0);
+          pointerSet.delete(pId);
+
+          if (pointerSet.size === 0) {
+            btn.classList.remove('touch-active');
+          }
+
+          if (btn.hasPointerCapture && btn.releasePointerCapture && e && e.pointerId !== undefined) {
+            try {
+              if (btn.hasPointerCapture(e.pointerId)) {
+                btn.releasePointerCapture(e.pointerId);
+              }
+            } catch (err) {}
+          }
+        };
+
+        const onCancel = (e) => {
+          onUp(e);
+        };
+
+        // Pointer Events
+        btn.addEventListener('pointerdown', onDown, { passive: false });
+        btn.addEventListener('pointerup', onUp, { passive: false });
+        btn.addEventListener('pointercancel', onCancel, { passive: false });
+        btn.addEventListener('lostpointercapture', onCancel, { passive: false });
+
+        // Touch event fallback
+        btn.addEventListener('touchstart', onDown, { passive: false });
+        btn.addEventListener('touchend', onUp, { passive: false });
+        btn.addEventListener('touchcancel', onCancel, { passive: false });
+      };
+
+      bindSteeringButton(this.touchLeft, 'left');
+      bindSteeringButton(this.touchRight, 'right');
+      bindSteeringButton(this.touchDown, 'down');
+      bindJumpButton(this.touchUp);
     }
 
     // --- Physics Sub-Step (Anti-tunneling & Deterministic Motion) ---
@@ -1959,7 +2171,10 @@
       else if (this.keys.right && !this.keys.left) steerX = 1;
 
       if (steerX !== 0) {
-        this.ball.vx += steerX * MOVE_ACCEL_X * subDt;
+        // Active counter-steering / reversal uses boosted braking acceleration for crisp turnaround
+        const isReversing = (this.ball.vx !== 0 && Math.sign(this.ball.vx) !== steerX);
+        const currentAccel = isReversing ? MOVE_BRAKE_ACCEL_X : MOVE_ACCEL_X;
+        this.ball.vx += steerX * currentAccel * subDt;
         if (Math.abs(this.ball.vx) > MAX_SPEED_X) {
           this.ball.vx = Math.sign(this.ball.vx) * MAX_SPEED_X;
         }
@@ -2036,9 +2251,6 @@
           this.runOrbs++;
           this.sound.playOrbCollect();
           this.particles.spawnOrbCollectSparks(orb.x, orbY);
-          if (this.auditManager && this.auditManager.active) {
-            this.auditManager.onCollectible('orb', orb);
-          }
           this.collectibles.splice(i, 1);
         }
       }
@@ -2056,9 +2268,6 @@
           this.runStars++;
           this.sound.playStarCollect();
           this.particles.spawnStarCollectBurst(star.x, starY);
-          if (this.auditManager && this.auditManager.active) {
-            this.auditManager.onCollectible('star', star);
-          }
           this.specialStars.splice(i, 1);
         }
       }
@@ -2114,9 +2323,6 @@
             // Trigger automatic upward bounce and reset air jump!
             this.ball.triggerBounce();
             p.triggerImpact();
-            if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.onBounce) {
-              this.autoplayer.onBounce(p);
-            }
             this.particles.spawnBounceSparks(this.ball.x, platTop, this.themeManager.getColors());
             this.sound.playBounce();
             break;
@@ -2147,14 +2353,6 @@
     update(dt) {
       if (this.currentState !== STATE.PLAYING) {
         return;
-      }
-
-      // Autoplayer controller execution & live audit evaluation
-      if (this.autoplayer && this.autoplayer.enabled) {
-        this.autoplayer.update(dt);
-      }
-      if (this.auditManager && this.auditManager.active) {
-        this.auditManager.onFrame(dt);
       }
 
       // Substepping prevents tunneling even with frame delays
@@ -2240,6 +2438,125 @@
       }
     }
 
+    // --- Landing Readability & Visual Prediction Guide ---
+    renderLandingIndicator(ctx, theme) {
+      if (this.currentState !== STATE.PLAYING && this.currentState !== STATE.PAUSED) return;
+
+      const ballX = this.ball.x;
+      const ballY = this.ball.y;
+      const ballVy = this.ball.vy;
+
+      // Find the closest platform directly underneath the ball
+      let targetPlat = null;
+      let minDy = Infinity;
+
+      for (let i = 0; i < this.platforms.length; i++) {
+        const p = this.platforms[i];
+        const dy = p.y - ballY;
+        // Consider platforms within 260px vertically below the ball
+        if (dy > 0 && dy < 260 && dy < minDy) {
+          if (ballX >= p.x - 32 && ballX <= p.x + p.width + 32) {
+            minDy = dy;
+            targetPlat = p;
+          }
+        }
+      }
+
+      if (!targetPlat) return;
+
+      const p = targetPlat;
+      const platTop = p.y;
+      const dy = platTop - ballY;
+
+      // Safe landing zone boundaries (excluding spike hazard if present)
+      let safeLeft = p.x;
+      let safeRight = p.x + p.width;
+      let isSpikeZone = false;
+      if (p.spike) {
+        if (p.spike.side === 'left') {
+          safeLeft = p.x + p.spike.width + 2;
+          if (ballX < safeLeft) isSpikeZone = true;
+        } else {
+          safeRight = p.x + p.width - p.spike.width - 2;
+          if (ballX > safeRight) isSpikeZone = true;
+        }
+      }
+
+      const isSafe = !isSpikeZone && ballX >= safeLeft - this.ball.radius * 0.4 && ballX <= safeRight + this.ball.radius * 0.4;
+
+      // Proximity factor (0 at 240px away, 1 at 0px away)
+      const proximity = Math.min(1, Math.max(0, 1 - (dy / 240)));
+      const fallFactor = ballVy > 0 ? 1.0 : 0.45;
+      const alpha = proximity * 0.55 * fallFactor;
+      if (alpha <= 0.02) return;
+
+      ctx.save();
+
+      // Theme-aligned neon colors
+      let primaryColor, glowColor;
+      if (isSpikeZone) {
+        primaryColor = `rgba(255, 42, 109, ${alpha * 0.95})`;
+        glowColor = `rgba(255, 42, 109, ${alpha * 0.4})`;
+      } else if (isSafe) {
+        primaryColor = theme ? theme.primaryAlpha(alpha * 0.85) : `rgba(0, 240, 255, ${alpha * 0.85})`;
+        glowColor = theme ? theme.primaryAlpha(alpha * 0.35) : `rgba(0, 240, 255, ${alpha * 0.35})`;
+      } else {
+        primaryColor = `rgba(148, 163, 184, ${alpha * 0.45})`;
+        glowColor = `rgba(148, 163, 184, ${alpha * 0.15})`;
+      }
+
+      // 1. Subtle vertical alignment ray (only when descending towards platform within 180px)
+      if (ballVy > 0 && dy < 180 && isSafe) {
+        const rayAlpha = Math.min(0.2, (1 - dy / 180) * 0.25);
+        const rayGrad = ctx.createLinearGradient(ballX, ballY + this.ball.radius, ballX, platTop);
+        rayGrad.addColorStop(0, theme ? theme.primaryAlpha(rayAlpha * 0.25) : `rgba(0, 240, 255, ${rayAlpha * 0.25})`);
+        rayGrad.addColorStop(1, theme ? theme.primaryAlpha(rayAlpha) : `rgba(0, 240, 255, ${rayAlpha})`);
+
+        ctx.beginPath();
+        ctx.moveTo(ballX, ballY + this.ball.radius);
+        ctx.lineTo(ballX, platTop);
+        ctx.strokeStyle = rayGrad;
+        ctx.lineWidth = 1.5;
+        if (ctx.setLineDash) ctx.setLineDash([3, 4]);
+        ctx.stroke();
+        if (ctx.setLineDash) ctx.setLineDash([]);
+      }
+
+      // 2. Landing Shadow Ellipse on platform top surface
+      const shadowX = Math.max(p.x + 6, Math.min(p.x + p.width - 6, ballX));
+      const shadowRadiusX = Math.max(8, this.ball.radius * (0.8 + 0.6 * proximity));
+      const shadowRadiusY = Math.max(2.5, 3.5 * proximity);
+
+      const shadowGrad = ctx.createRadialGradient(
+        shadowX, platTop, 1,
+        shadowX, platTop, shadowRadiusX * 1.5
+      );
+      shadowGrad.addColorStop(0, primaryColor);
+      shadowGrad.addColorStop(0.5, glowColor);
+      shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.beginPath();
+      if (ctx.ellipse) {
+        ctx.ellipse(shadowX, platTop, shadowRadiusX * 1.4, shadowRadiusY * 1.5, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(shadowX, platTop, shadowRadiusX, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = shadowGrad;
+      ctx.fill();
+
+      // Inner crisp touchdown marker pip
+      ctx.beginPath();
+      if (ctx.ellipse) {
+        ctx.ellipse(shadowX, platTop, shadowRadiusX * 0.6, shadowRadiusY * 0.7, 0, 0, Math.PI * 2);
+      } else {
+        ctx.arc(shadowX, platTop, shadowRadiusX * 0.6, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = primaryColor;
+      ctx.fill();
+
+      ctx.restore();
+    }
+
     // --- Rendering ---
     render() {
       // Clear canvas
@@ -2261,6 +2578,9 @@
         this.platforms[i].render(this.ctx, theme);
       }
 
+      // Render subtle predictive landing shadow and alignment cue
+      this.renderLandingIndicator(this.ctx, theme);
+
       // Render Collectible Energy Orbs
       for (let i = 0; i < this.collectibles.length; i++) {
         this.collectibles[i].render(this.ctx);
@@ -2280,11 +2600,6 @@
       }
 
       this.ctx.restore();
-
-      // AI Diagnostics Overlay (Active only when Autoplayer Debug Mode is enabled)
-      if (this.autoplayer && this.autoplayer.enabled && this.autoplayer.debugMode && this.autoplayer.renderDiagnostics) {
-        this.autoplayer.renderDiagnostics(this.ctx);
-      }
     }
 
     // --- Main Loop ---
@@ -2309,8 +2624,43 @@
     }
   }
 
-  // Initialize Game on DOM Ready
-  window.addEventListener('DOMContentLoaded', () => {
-    window.bounceGame = new BounceGame();
-  });
+  // Expose on global window object if available
+  if (typeof window !== 'undefined') {
+    window.BounceGame = BounceGame;
+    window.STATE = STATE;
+    window.getLevelMilestone = getLevelMilestone;
+    window.bindButtonAction = bindButtonAction;
+    window.MOVE_ACCEL_X = MOVE_ACCEL_X;
+    window.MOVE_BRAKE_ACCEL_X = MOVE_BRAKE_ACCEL_X;
+    window.MOVE_DECEL_X = MOVE_DECEL_X;
+    window.MAX_SPEED_X = MAX_SPEED_X;
+  }
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+      BounceGame,
+      STATE,
+      getLevelMilestone,
+      bindButtonAction,
+      MOVE_ACCEL_X,
+      MOVE_BRAKE_ACCEL_X,
+      MOVE_DECEL_X,
+      MAX_SPEED_X,
+    };
+  }
+
+  // Initialize Game on DOM Ready or immediately if DOM is already ready
+  function initGameInstance() {
+    if (typeof window !== 'undefined' && !window.bounceGame) {
+      window.bounceGame = new BounceGame();
+    }
+  }
+
+  if (typeof window !== 'undefined') {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initGameInstance);
+    } else {
+      initGameInstance();
+    }
+  }
 })();
