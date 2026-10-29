@@ -19,13 +19,14 @@
 
   // --- Constants & Config ---
   const CANVAS_WIDTH = 480;
-  const CANVAS_HEIGHT = 700;
+  let CANVAS_HEIGHT = 700;
   const STORAGE_KEY_BEST = 'bounce_arcade_best_score';
   const STORAGE_KEY_LEVEL = 'bounce_arcade_highest_level';
   const STORAGE_KEY_SOUND = 'bounce_arcade_sound_enabled';
   const STORAGE_KEY_TOTAL_ORBS = 'bounce_arcade_total_orbs';
   const STORAGE_KEY_TOTAL_STARS = 'bounce_arcade_total_stars';
   const STORAGE_KEY_LEVEL_RATINGS = 'bounce_arcade_level_ratings';
+  const STORAGE_KEY_LAST_PLAYED = 'bounce_arcade_last_played_level';
 
   // Three-Star Performance Rating Thresholds (Configurable in one place)
   const PERFORMANCE_RATING_CONFIG = {
@@ -123,54 +124,236 @@
   }
 
   // --- Level Neon Color Themes ---
-  // Level 1: Cyan and electric blue
-  // Level 2: Purple and magenta
-  // Level 3: Neon green and lime
-  // Level 4: Orange and gold
-  // Level 5: Pink and hot magenta
-  // Level 6 onward: Cycles through themes predictably
+  // Comprehensive collection of 16 coordinated, high-contrast neon arcade themes.
+  // Each theme provides a full atmospheric palette:
+  // - primary: Vibrant, saturated neon for borders, HUD, particle bursts, and primary accents
+  // - secondary: Complementary/analogous neon accent for progress bars, secondary particles, and gradients
+  // - rail: High-luminescence top impact rail for crisp bounce visibility
+  // - bodyTop / bodyBottom: Geometric platform gradient backing with visible theme tinting
+  // - bgTop / bgMid / bgBottom: Atmospheric cosmic backdrop tailored to the theme's color family
+  // - grid: Ambient cyber grid lines scrolling with camera
+  // - ambientAura: Upper atmospheric backdrop glow radiating from top of the screen
   const LEVEL_THEMES = [
     {
-      name: 'Cyan & Electric Blue',
-      primary: [0, 240, 255],       // #00f0ff
-      secondary: [0, 119, 255],     // #0077ff
-      rail: [56, 189, 248],         // #38bdf8
-      bodyTop: [11, 26, 48],        // #0b1a30
-      bodyBottom: [6, 13, 26],      // #060d1a
+      name: 'Icy Cyan & Glacial Blue',
+      primary: [0, 240, 255],       // #00f0ff - electric cyan
+      secondary: [0, 119, 255],     // #0077ff - deep electric blue
+      rail: [90, 215, 255],         // #5ad7ff - bright glacial rail
+      bodyTop: [10, 32, 56],        // rich deep navy cyan
+      bodyBottom: [4, 15, 30],
+      bgTop: [3, 8, 20],            // deep cyber navy
+      bgMid: [5, 18, 38],           // electric cyan-tinted atmospheric depth
+      bgBottom: [2, 6, 16],
+      grid: [0, 240, 255],
+      ambientAura: [0, 180, 255],
     },
     {
-      name: 'Purple & Magenta',
-      primary: [168, 85, 247],      // #a855f7
-      secondary: [217, 70, 239],    // #d946ef
-      rail: [192, 132, 252],        // #c084fc
-      bodyTop: [28, 18, 54],        // #1c1236
-      bodyBottom: [13, 8, 28],      // #0d081c
+      name: 'Magenta & Coral',
+      primary: [255, 35, 145],      // #ff2391 - hot neon magenta
+      secondary: [255, 105, 55],    // #ff6937 - vivid glowing coral
+      rail: [255, 160, 185],        // #ffa0b9 - bright coral highlight
+      bodyTop: [52, 12, 32],        // rich dark velvet magenta
+      bodyBottom: [24, 5, 16],
+      bgTop: [18, 4, 12],           // deep plum cosmos
+      bgMid: [36, 8, 24],           // rich magenta ambient depth
+      bgBottom: [12, 3, 8],
+      grid: [255, 42, 145],
+      ambientAura: [255, 35, 145],
     },
     {
-      name: 'Neon Green & Lime',
-      primary: [46, 234, 112],      // #2eea70
-      secondary: [163, 230, 53],    // #a3e635
-      rail: [74, 222, 128],         // #4ade80
-      bodyTop: [14, 38, 23],        // #0e2617
-      bodyBottom: [6, 19, 11],      // #06130b
+      name: 'Acid Lime & Toxic Neon',
+      primary: [175, 255, 20],      // #afff14 - intense radioactive acid lime
+      secondary: [20, 220, 90],     // #14dc5a - vibrant toxic emerald
+      rail: [220, 255, 140],        // #dcff8c - high-voltage lime rail
+      bodyTop: [24, 48, 12],        // rich dark toxic green
+      bodyBottom: [10, 22, 6],
+      bgTop: [6, 16, 6],            // deep bio-hazard abyss
+      bgMid: [14, 34, 12],          // vivid acid-lime ambient depth
+      bgBottom: [4, 10, 4],
+      grid: [175, 255, 20],
+      ambientAura: [175, 255, 20],
     },
     {
-      name: 'Orange & Gold',
-      primary: [255, 136, 0],       // #ff8800
-      secondary: [255, 215, 0],     // #ffd700
-      rail: [245, 158, 11],         // #f59e0b
-      bodyTop: [43, 23, 8],         // #2b1708
-      bodyBottom: [20, 9, 2],       // #140902
+      name: 'Ultraviolet & Deep Violet',
+      primary: [170, 70, 255],      // #aa46ff - electric neon violet
+      secondary: [220, 40, 255],    // #dc28ff - bright electric purple
+      rail: [225, 175, 255],        // #e1afff - glowing ultraviolet rail
+      bodyTop: [36, 14, 62],        // rich dark royal violet
+      bodyBottom: [18, 6, 30],
+      bgTop: [14, 4, 24],           // deep cosmic violet abyss
+      bgMid: [28, 8, 48],           // rich ultraviolet atmospheric depth
+      bgBottom: [10, 2, 16],
+      grid: [170, 70, 255],
+      ambientAura: [170, 70, 255],
     },
     {
-      name: 'Pink & Hot Magenta',
-      primary: [244, 63, 94],       // #f43f5e
-      secondary: [255, 0, 127],     // #ff007f
-      rail: [251, 113, 133],        // #fb7185
-      bodyTop: [43, 11, 30],        // #2b0b1e
-      bodyBottom: [20, 4, 14],      // #14040e
+      name: 'Electric Orange & Solar Flare',
+      primary: [255, 95, 0],        // #ff5f00 - searing electric orange
+      secondary: [255, 195, 0],     // #ffc300 - radiant solar gold
+      rail: [255, 210, 130],        // #ffd282 - incandescent solar rail
+      bodyTop: [54, 22, 6],         // rich dark burnt amber
+      bodyBottom: [26, 9, 2],
+      bgTop: [18, 7, 2],            // deep solar flare void
+      bgMid: [36, 14, 4],           // rich electric orange atmospheric depth
+      bgBottom: [12, 4, 1],
+      grid: [255, 110, 10],
+      ambientAura: [255, 95, 0],
+    },
+    {
+      name: 'Turquoise & Aquamarine',
+      primary: [0, 245, 185],       // #00f5b9 - vivid cyber turquoise
+      secondary: [0, 175, 235],     // #00afeb - bright aquamarine
+      rail: [140, 255, 230],        // #8cffe6 - luminous seafoam rail
+      bodyTop: [8, 46, 42],         // rich dark oceanic teal
+      bodyBottom: [4, 22, 20],
+      bgTop: [2, 14, 16],           // deep abyss oceanic cosmos
+      bgMid: [4, 30, 32],           // rich turquoise atmospheric depth
+      bgBottom: [2, 8, 10],
+      grid: [0, 245, 185],
+      ambientAura: [0, 245, 185],
+    },
+    {
+      name: 'Crimson & Ember',
+      primary: [255, 25, 65],       // #ff1941 - laser neon crimson
+      secondary: [255, 110, 25],    // #ff6e19 - glowing molten ember
+      rail: [255, 165, 175],        // #ffa5af - bright crimson rail
+      bodyTop: [56, 10, 18],        // rich dark volcanic obsidian
+      bodyBottom: [26, 4, 8],
+      bgTop: [18, 3, 6],            // deep volcanic crimson void
+      bgMid: [36, 6, 12],           // rich neon crimson atmospheric depth
+      bgBottom: [12, 2, 4],
+      grid: [255, 45, 75],
+      ambientAura: [255, 25, 65],
+    },
+    {
+      name: 'Emerald & Gold',
+      primary: [0, 230, 115],       // #00e673 - radiant emerald green
+      secondary: [255, 215, 0],     // #ffd700 - cyber gold
+      rail: [170, 255, 205],        // #aaffcd - lustrous jade rail
+      bodyTop: [12, 50, 28],        // rich dark imperial malachite
+      bodyBottom: [5, 24, 13],
+      bgTop: [3, 16, 10],           // deep malachite cosmos
+      bgMid: [6, 34, 20],           // rich emerald atmospheric depth
+      bgBottom: [2, 10, 6],
+      grid: [0, 230, 115],
+      ambientAura: [0, 230, 115],
+    },
+    {
+      name: 'Sunset Amber & Rose',
+      primary: [255, 150, 0],       // #ff9600 - deep radiant amber
+      secondary: [255, 45, 110],    // #ff2d6e - twilight rose
+      rail: [255, 220, 140],        // #ffdc8c - warm twilight amber rail
+      bodyTop: [50, 26, 10],        // rich dark twilight sienna
+      bodyBottom: [24, 11, 4],
+      bgTop: [16, 7, 3],            // deep sunset dusk cosmos
+      bgMid: [34, 14, 6],           // rich amber atmospheric depth
+      bgBottom: [10, 4, 2],
+      grid: [255, 150, 0],
+      ambientAura: [255, 150, 0],
+    },
+    {
+      name: 'Chrome Silver & Platinum',
+      primary: [225, 235, 245],     // #e1ebf5 - gleaming chrome silver
+      secondary: [130, 160, 195],   // #82a0c3 - cool steel blue
+      rail: [255, 255, 255],        // #ffffff - pure platinum white rail
+      bodyTop: [32, 38, 50],        // rich metallic dark titanium
+      bodyBottom: [14, 17, 24],
+      bgTop: [10, 12, 16],          // deep monochrome charcoal void
+      bgMid: [20, 24, 32],          // sleek chrome atmospheric depth
+      bgBottom: [7, 8, 12],
+      grid: [185, 205, 230],
+      ambientAura: [210, 225, 245],
+    },
+    {
+      name: 'Cyberpunk Yellow & Cobalt',
+      primary: [255, 235, 0],       // #ffeb00 - high-voltage laser yellow
+      secondary: [30, 100, 255],    // #1e64ff - deep electric cobalt
+      rail: [255, 250, 150],        // #fffa96 - blazing laser rail
+      bodyTop: [32, 34, 14],        // rich dark industrial carbon
+      bodyBottom: [14, 16, 6],
+      bgTop: [8, 10, 18],           // deep tech-noir midnight void
+      bgMid: [22, 24, 12],          // laser-yellow ambient aura
+      bgBottom: [5, 7, 14],
+      grid: [255, 235, 0],
+      ambientAura: [255, 235, 0],
+    },
+    {
+      name: 'Neon Rose & Ruby',
+      primary: [255, 20, 120],      // #ff1478 - electric hot pink
+      secondary: [200, 10, 70],     // #c80a46 - deep ruby red
+      rail: [255, 160, 205],        // #ffa0cd - luminous pink rail
+      bodyTop: [52, 10, 28],        // rich dark ruby velvet
+      bodyBottom: [24, 4, 12],
+      bgTop: [18, 3, 10],           // deep noir rose cosmos
+      bgMid: [36, 6, 20],           // rich hot pink atmospheric depth
+      bgBottom: [10, 2, 6],
+      grid: [255, 20, 120],
+      ambientAura: [255, 20, 120],
+    },
+    {
+      name: 'Hyper Mint & Jade',
+      primary: [30, 255, 170],      // #1effaa - hyper neon mint
+      secondary: [0, 180, 115],     // #00b473 - deep forest jade
+      rail: [170, 255, 220],        // #aaffdc - crystalline mint rail
+      bodyTop: [10, 46, 34],        // rich dark pine mint
+      bodyBottom: [4, 22, 16],
+      bgTop: [2, 15, 12],           // deep nocturnal mint void
+      bgMid: [4, 32, 24],           // rich mint atmospheric depth
+      bgBottom: [2, 9, 7],
+      grid: [30, 255, 170],
+      ambientAura: [30, 255, 170],
+    },
+    {
+      name: 'Amethyst & Orchid',
+      primary: [225, 45, 245],      // #e12df5 - vivid neon orchid
+      secondary: [130, 50, 255],    // #8232ff - electric amethyst
+      rail: [245, 175, 255],        // #f5afff - radiant orchid rail
+      bodyTop: [44, 14, 52],        // rich dark royal orchid
+      bodyBottom: [20, 5, 24],
+      bgTop: [16, 4, 20],           // deep amethyst cosmos
+      bgMid: [32, 8, 40],           // rich orchid atmospheric depth
+      bgBottom: [10, 2, 12],
+      grid: [225, 45, 245],
+      ambientAura: [225, 45, 245],
+    },
+    {
+      name: 'Solar Plasma & Tangerine',
+      primary: [255, 75, 10],       // #ff4b0a - blazing plasma orange
+      secondary: [255, 160, 0],     // #ffa000 - molten solar amber
+      rail: [255, 195, 140],        // #ffc38c - white-hot plasma rail
+      bodyTop: [54, 18, 6],         // rich dark magma mantle
+      bodyBottom: [26, 7, 2],
+      bgTop: [18, 5, 2],            // deep cosmic magma void
+      bgMid: [38, 10, 4],           // rich fiery orange atmospheric depth
+      bgBottom: [12, 3, 1],
+      grid: [255, 85, 20],
+      ambientAura: [255, 75, 10],
+    },
+    {
+      name: 'Synthwave Azure & Indigo',
+      primary: [40, 165, 255],      // #28a5ff - radiant azure sky
+      secondary: [115, 65, 255],    // #7341ff - neon synth indigo
+      rail: [175, 225, 255],        // #afe1ff - crystal azure rail
+      bodyTop: [16, 26, 62],        // rich dark 80s synth indigo
+      bodyBottom: [7, 12, 30],
+      bgTop: [5, 8, 24],            // deep twilight indigo cosmos
+      bgMid: [10, 18, 48],          // rich synthwave azure depth
+      bgBottom: [3, 5, 18],
+      grid: [40, 165, 255],
+      ambientAura: [40, 165, 255],
     },
   ];
+
+  function getThemeIndexForLevel(lvl) {
+    const n = Math.floor(Number(lvl));
+    if (!Number.isFinite(n) || n <= 0) return 0;
+    return ((n - 1) % LEVEL_THEMES.length + LEVEL_THEMES.length) % LEVEL_THEMES.length;
+  }
+
+  function getThemeForLevel(lvl) {
+    const idx = getThemeIndexForLevel(lvl);
+    return LEVEL_THEMES[idx];
+  }
 
   function lerpColor(c1, c2, t) {
     return [
@@ -191,24 +374,30 @@
   class ThemeManager {
     constructor() {
       this.currentLevel = 1;
-      this.current = this.cloneTheme(LEVEL_THEMES[0]);
-      this.target = this.cloneTheme(LEVEL_THEMES[0]);
+      const t = getThemeForLevel(1);
+      this.current = this.cloneTheme(t);
+      this.target = this.cloneTheme(t);
     }
 
     cloneTheme(theme) {
       return {
+        name: theme.name,
         primary: [...theme.primary],
         secondary: [...theme.secondary],
         rail: [...theme.rail],
         bodyTop: [...theme.bodyTop],
         bodyBottom: [...theme.bodyBottom],
+        bgTop: [...theme.bgTop],
+        bgMid: [...theme.bgMid],
+        bgBottom: [...theme.bgBottom],
+        grid: theme.grid ? [...theme.grid] : [...theme.primary],
+        ambientAura: theme.ambientAura ? [...theme.ambientAura] : [...theme.secondary],
       };
     }
 
     setLevel(lvl, instant = false) {
       this.currentLevel = lvl;
-      const themeIdx = (lvl - 1) % LEVEL_THEMES.length;
-      const t = LEVEL_THEMES[themeIdx];
+      const t = getThemeForLevel(lvl);
       this.target = this.cloneTheme(t);
       if (instant) {
         this.current = this.cloneTheme(t);
@@ -223,20 +412,33 @@
       this.current.rail = lerpColor(this.current.rail, this.target.rail, t);
       this.current.bodyTop = lerpColor(this.current.bodyTop, this.target.bodyTop, t);
       this.current.bodyBottom = lerpColor(this.current.bodyBottom, this.target.bodyBottom, t);
+      this.current.bgTop = lerpColor(this.current.bgTop, this.target.bgTop, t);
+      this.current.bgMid = lerpColor(this.current.bgMid, this.target.bgMid, t);
+      this.current.bgBottom = lerpColor(this.current.bgBottom, this.target.bgBottom, t);
+      this.current.grid = lerpColor(this.current.grid, this.target.grid, t);
+      this.current.ambientAura = lerpColor(this.current.ambientAura, this.target.ambientAura, t);
     }
 
     getColors() {
       const c = this.current;
       return {
+        name: this.target.name,
         primary: rgbStr(c.primary),
         primaryRgb: c.primary,
         primaryAlpha: (a) => rgbaStr(c.primary, a),
         secondary: rgbStr(c.secondary),
+        secondaryRgb: c.secondary,
         secondaryAlpha: (a) => rgbaStr(c.secondary, a),
         rail: rgbStr(c.rail),
         railAlpha: (a) => rgbaStr(c.rail, a),
         bodyTop: rgbStr(c.bodyTop),
         bodyBottom: rgbStr(c.bodyBottom),
+        bgTop: rgbStr(c.bgTop),
+        bgMid: rgbStr(c.bgMid),
+        bgBottom: rgbStr(c.bgBottom),
+        grid: rgbStr(c.grid),
+        gridAlpha: (a) => rgbaStr(c.grid, a),
+        ambientAlpha: (a) => rgbaStr(c.ambientAura, a),
       };
     }
   }
@@ -244,6 +446,7 @@
   // --- Game States ---
   const STATE = {
     MENU: 'MENU',
+    LEVEL_SELECT: 'LEVEL_SELECT',
     PLAYING: 'PLAYING',
     PAUSED: 'PAUSED',
     GAMEOVER: 'GAMEOVER',
@@ -775,11 +978,17 @@
       ctx.translate(this.x, this.y);
       ctx.scale(this.squashX, this.squashY);
 
-      // Outer glow aura
+      // Outer glow aura subtly resonating with active theme
       const glowGrad = ctx.createRadialGradient(0, 0, this.radius * 0.4, 0, 0, this.radius * 2.2);
-      glowGrad.addColorStop(0, 'rgba(0, 240, 255, 0.9)');
-      glowGrad.addColorStop(0.5, 'rgba(0, 240, 255, 0.35)');
-      glowGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+      if (theme && theme.primaryAlpha) {
+        glowGrad.addColorStop(0, theme.primaryAlpha(0.75));
+        glowGrad.addColorStop(0.5, theme.secondaryAlpha(0.28));
+        glowGrad.addColorStop(1, theme.primaryAlpha(0));
+      } else {
+        glowGrad.addColorStop(0, 'rgba(0, 240, 255, 0.9)');
+        glowGrad.addColorStop(0.5, 'rgba(0, 240, 255, 0.35)');
+        glowGrad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+      }
 
       ctx.beginPath();
       ctx.arc(0, 0, this.radius * 2.2, 0, Math.PI * 2);
@@ -790,7 +999,7 @@
       if (this.hasAirJump) {
         ctx.beginPath();
         ctx.arc(0, 0, this.radius * 1.45, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+        ctx.strokeStyle = (theme && theme.primaryAlpha) ? theme.primaryAlpha(0.65) : 'rgba(0, 240, 255, 0.6)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -877,7 +1086,7 @@
       const primaryAlpha = theme ? theme.primaryAlpha : (a) => `rgba(0, 240, 255, ${a})`;
       const railCol = theme ? theme.rail : '#38bdf8';
 
-      // Platform body gradient from active level theme
+      // 1. Platform body gradient from active level theme
       const bodyGrad = ctx.createLinearGradient(this.x, drawY, this.x, drawY + this.height);
       bodyGrad.addColorStop(0, bodyTop);
       bodyGrad.addColorStop(1, bodyBottom);
@@ -887,21 +1096,30 @@
       ctx.fillStyle = bodyGrad;
       ctx.fill();
 
-      // Platform border & neon glow
+      // 2. Outer neon bloom glow (radiant aura in theme color)
+      ctx.beginPath();
+      ctx.roundRect(this.x, drawY, this.width, this.height, 6);
+      ctx.lineWidth = 5;
+      ctx.strokeStyle = this.impactPulse > 0 ? 'rgba(255, 255, 255, 0.65)' : primaryAlpha(0.38);
+      ctx.stroke();
+
+      // 3. Crisp inner neon border
+      ctx.beginPath();
+      ctx.roundRect(this.x, drawY, this.width, this.height, 6);
       ctx.lineWidth = 2;
       ctx.strokeStyle = this.impactPulse > 0 ? '#ffffff' : primaryCol;
       ctx.stroke();
 
-      // Glowing top impact rail
+      // 4. Glowing top impact rail
       const railGrad = ctx.createLinearGradient(this.x, drawY, this.x + this.width, drawY);
       if (this.impactPulse > 0) {
-        railGrad.addColorStop(0, primaryAlpha(0.6));
+        railGrad.addColorStop(0, primaryAlpha(0.75));
         railGrad.addColorStop(0.5, '#ffffff');
-        railGrad.addColorStop(1, primaryAlpha(0.6));
+        railGrad.addColorStop(1, primaryAlpha(0.75));
       } else {
-        railGrad.addColorStop(0, primaryAlpha(0.35));
+        railGrad.addColorStop(0, primaryAlpha(0.45));
         railGrad.addColorStop(0.5, railCol);
-        railGrad.addColorStop(1, primaryAlpha(0.35));
+        railGrad.addColorStop(1, primaryAlpha(0.45));
       }
 
       ctx.beginPath();
@@ -911,7 +1129,7 @@
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      // Distinct glowing boundary edge caps for safe landing zone readability
+      // 5. Distinct glowing boundary edge caps for safe landing zone readability
       let safeEdgeL = this.x + 2;
       let safeEdgeR = this.x + this.width - 2;
       if (this.spike) {
@@ -927,7 +1145,7 @@
       ctx.lineTo(safeEdgeL, drawY + 6);
       ctx.moveTo(safeEdgeR, drawY - 2);
       ctx.lineTo(safeEdgeR, drawY + 6);
-      ctx.strokeStyle = this.impactPulse > 0 ? '#ffffff' : primaryAlpha(0.85);
+      ctx.strokeStyle = this.impactPulse > 0 ? '#ffffff' : primaryAlpha(0.9);
       ctx.lineWidth = 2.5;
       ctx.stroke();
 
@@ -1187,40 +1405,70 @@
   class Background {
     constructor() {
       this.stars = [];
+      this.lastHeight = CANVAS_HEIGHT;
+      this.initStars(CANVAS_HEIGHT);
+    }
+
+    initStars(height = CANVAS_HEIGHT) {
+      this.stars = [];
       for (let i = 0; i < 40; i++) {
         const isCyan = Math.random() > 0.45;
         this.stars.push({
           x: Math.random() * CANVAS_WIDTH,
-          y: Math.random() * CANVAS_HEIGHT,
+          y: Math.random() * height,
           radius: 0.75 + Math.random() * 1.35,
           alpha: 0.2 + Math.random() * 0.6,
           parallax: 0.18 + Math.random() * 0.5,
           colorPrefix: isCyan ? 'rgba(56, 189, 248, ' : 'rgba(192, 132, 252, ',
+          useAccent: Math.random() > 0.5,
         });
       }
     }
 
-    render(ctx, cameraY) {
+    updateDimensions(height) {
+      if (typeof height === 'number' && Number.isFinite(height) && height > 0) {
+        if (Math.abs((this.lastHeight || CANVAS_HEIGHT) - height) > 40) {
+          this.lastHeight = height;
+          this.initStars(height);
+        }
+      }
+    }
+
+    render(ctx, cameraY, theme = null) {
       ctx.save();
+      const currentHeight = (ctx && ctx.canvas && ctx.canvas.height) ? ctx.canvas.height : CANVAS_HEIGHT;
 
-      // Deep dark navy backdrop with atmospheric cyber lighting
-      const bgGrad = ctx.createLinearGradient(0, 0, 0, CANVAS_HEIGHT);
-      bgGrad.addColorStop(0, '#03050e');
-      bgGrad.addColorStop(0.35, '#070c22');
-      bgGrad.addColorStop(0.75, '#080d26');
-      bgGrad.addColorStop(1, '#040612');
+      // Atmospheric cyber backdrop tinted to the active level theme's color family
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, currentHeight);
+      if (theme && theme.bgTop) {
+        bgGrad.addColorStop(0, theme.bgTop);
+        bgGrad.addColorStop(0.38, theme.bgMid);
+        bgGrad.addColorStop(0.82, theme.bgBottom);
+        bgGrad.addColorStop(1, theme.bgTop);
+      } else {
+        bgGrad.addColorStop(0, '#03050e');
+        bgGrad.addColorStop(0.35, theme ? theme.bodyBottom : '#070c22');
+        bgGrad.addColorStop(0.75, '#080d26');
+        bgGrad.addColorStop(1, '#040612');
+      }
       ctx.fillStyle = bgGrad;
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      ctx.fillRect(0, 0, CANVAS_WIDTH, currentHeight);
 
-      // Subtle atmospheric upper ambient glow
-      const ambientAura = ctx.createRadialGradient(CANVAS_WIDTH * 0.5, 0, 10, CANVAS_WIDTH * 0.5, 0, 280);
-      ambientAura.addColorStop(0, 'rgba(124, 58, 237, 0.08)');
-      ambientAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      // Atmospheric upper ambient radial glow in active theme's signature aura
+      const ambientAura = ctx.createRadialGradient(CANVAS_WIDTH * 0.5, 0, 20, CANVAS_WIDTH * 0.5, 0, 380);
+      if (theme && theme.ambientAlpha) {
+        ambientAura.addColorStop(0, theme.ambientAlpha(0.26));
+        ambientAura.addColorStop(0.5, theme.ambientAlpha(0.08));
+        ambientAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      } else {
+        ambientAura.addColorStop(0, 'rgba(124, 58, 237, 0.12)');
+        ambientAura.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      }
       ctx.fillStyle = ambientAura;
-      ctx.fillRect(0, 0, CANVAS_WIDTH, 280);
+      ctx.fillRect(0, 0, CANVAS_WIDTH, 380);
 
-      // Subtle cyber grid lines that scroll seamlessly with camera
-      ctx.strokeStyle = 'rgba(0, 240, 255, 0.038)';
+      // Visible cyber grid lines that scroll seamlessly with camera and carry the active theme
+      ctx.strokeStyle = theme && theme.gridAlpha ? theme.gridAlpha(0.13) : 'rgba(0, 240, 255, 0.08)';
       ctx.lineWidth = 1;
       const gridSize = 40;
 
@@ -1228,13 +1476,13 @@
       for (let x = 0; x < CANVAS_WIDTH; x += gridSize) {
         ctx.beginPath();
         ctx.moveTo(x, 0);
-        ctx.lineTo(x, CANVAS_HEIGHT);
+        ctx.lineTo(x, currentHeight);
         ctx.stroke();
       }
 
       // Horizontal grid lines offset by camera position
       const gridOffsetY = ((-cameraY) % gridSize + gridSize) % gridSize;
-      for (let y = gridOffsetY; y < CANVAS_HEIGHT; y += gridSize) {
+      for (let y = gridOffsetY; y < currentHeight; y += gridSize) {
         ctx.beginPath();
         ctx.moveTo(0, y);
         ctx.lineTo(CANVAS_WIDTH, y);
@@ -1245,11 +1493,15 @@
       for (let i = 0; i < this.stars.length; i++) {
         const star = this.stars[i];
         // Calculate screen Y with parallax wrapping
-        const screenStarY = ((star.y - cameraY * star.parallax) % CANVAS_HEIGHT + CANVAS_HEIGHT) % CANVAS_HEIGHT;
+        const screenStarY = ((star.y - cameraY * star.parallax) % currentHeight + currentHeight) % currentHeight;
 
         ctx.beginPath();
         ctx.arc(star.x, screenStarY, star.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `${star.colorPrefix}${star.alpha})`;
+        if (theme && theme.primaryAlpha) {
+          ctx.fillStyle = star.useAccent ? theme.secondaryAlpha(star.alpha * 0.85) : theme.primaryAlpha(star.alpha * 0.85);
+        } else {
+          ctx.fillStyle = `${star.colorPrefix}${star.alpha})`;
+        }
         ctx.fill();
       }
 
@@ -1306,6 +1558,22 @@
       this.levelBannerTitle = document.getElementById('levelBannerTitle');
       this.bannerTimeoutId = null;
 
+      // Level Selection Screen Elements
+      this.levelSelectScreen = document.getElementById('levelSelectScreen');
+      this.continueLevelBtn = document.getElementById('continueLevelBtn');
+      this.continueLevelTitle = document.getElementById('continueLevelTitle');
+      this.levelCardsGrid = document.getElementById('levelCardsGrid');
+      this.levelGridScroll = document.getElementById('levelGridScroll');
+      this.levelSelectBackBtn = document.getElementById('levelSelectBackBtn');
+      this.levelSelectProgressSub = document.getElementById('levelSelectProgressSub');
+      this.levelsBtn = document.getElementById('levelsBtn');
+      this.resultsLevelsBtn = document.getElementById('resultsLevelsBtn');
+      this.pauseLevelsBtn = document.getElementById('pauseLevelsBtn');
+      this.prevWorldBtn = document.getElementById('prevWorldBtn');
+      this.nextWorldBtn = document.getElementById('nextWorldBtn');
+      this.worldTitleText = document.getElementById('worldTitleText');
+      this.worldRangeText = document.getElementById('worldRangeText');
+
       // Buttons
       this.playBtn = document.getElementById('playBtn');
       this.resumeBtn = document.getElementById('resumeBtn');
@@ -1354,12 +1622,17 @@
         down: false,
       };
 
-      // Game Metrics & State
+      // Game Metrics & Progression State
       this.currentState = STATE.MENU;
       this.score = 0;
       this.maxAltitude = 0;
+      this.startAltitude = 0;
       this.level = 1;
-      this.highestLevelCompleted = this.loadHighestLevel();
+      this.highestUnlockedLevel = this.loadHighestUnlockedLevel();
+      this.lastPlayedLevel = this.loadLastPlayedLevel();
+      this.selectedLevel = this.lastPlayedLevel;
+      this.currentWorld = this.getWorldForLevel(this.lastPlayedLevel);
+      this.displayedCardsCount = 12;
       this.bestScore = this.loadBestScore();
       this.isNewRecord = false;
 
@@ -1375,6 +1648,10 @@
       this.lastTime = 0;
       this.animationFrameId = null;
 
+      // Canvas logical dimensions & responsive scaling
+      this.canvasHeight = CANVAS_HEIGHT;
+      this.updateCanvasDimensions();
+
       // Initialize
       this.setupEventListeners();
       this.setupMobileControls();
@@ -1385,6 +1662,74 @@
       // Start Game Loop
       this.loop = this.loop.bind(this);
       this.animationFrameId = requestAnimationFrame(this.loop);
+    }
+
+    // --- Dynamic Canvas & Viewport Sizing ---
+    updateCanvasDimensions() {
+      if (!this.canvas) return;
+
+      let containerW = 0;
+      let containerH = 0;
+
+      if (this.container) {
+        containerW = this.container.clientWidth;
+        containerH = this.container.clientHeight;
+        if (!containerW || !containerH) {
+          const rect = (typeof this.container.getBoundingClientRect === 'function')
+            ? this.container.getBoundingClientRect()
+            : null;
+          if (rect) {
+            containerW = rect.width;
+            containerH = rect.height;
+          }
+        }
+      }
+
+      if (!containerW && typeof window !== 'undefined') {
+        if (window.visualViewport && window.visualViewport.width > 0) {
+          containerW = window.visualViewport.width;
+        } else {
+          containerW = window.innerWidth || CANVAS_WIDTH;
+        }
+      }
+
+      if (!containerH && typeof window !== 'undefined') {
+        if (window.visualViewport && window.visualViewport.height > 0) {
+          containerH = window.visualViewport.height;
+        } else {
+          containerH = window.innerHeight || 700;
+        }
+      }
+
+      const clientW = Math.max(1, containerW || CANVAS_WIDTH);
+      const clientH = Math.max(1, containerH || 700);
+
+      // Calculate target logical height maintaining fixed CANVAS_WIDTH = 480
+      // Clamped to at least 700 to guarantee safe spawn platform at y=620 is comfortably visible
+      const aspect = clientH / clientW;
+      const targetHeight = Math.max(700, Math.round(CANVAS_WIDTH * aspect));
+
+      CANVAS_HEIGHT = targetHeight;
+      this.canvasHeight = targetHeight;
+
+      if (this.canvas.width !== CANVAS_WIDTH) {
+        this.canvas.width = CANVAS_WIDTH;
+      }
+      if (this.canvas.height !== targetHeight) {
+        this.canvas.height = targetHeight;
+      }
+
+      if (this.background && typeof this.background.updateDimensions === 'function') {
+        this.background.updateDimensions(targetHeight);
+      }
+    }
+
+    // Backward compatibility alias for highestUnlockedLevel
+    get highestLevelCompleted() {
+      return this.highestUnlockedLevel;
+    }
+    set highestLevelCompleted(val) {
+      this.highestUnlockedLevel = val;
     }
 
     // --- Persistence ---
@@ -1403,18 +1748,55 @@
       } catch (e) {}
     }
 
-    loadHighestLevel() {
+    loadHighestUnlockedLevel() {
       try {
         const saved = localStorage.getItem(STORAGE_KEY_LEVEL);
-        return saved ? Math.max(1, parseInt(saved, 10) || 1) : 1;
+        if (!saved) return 1;
+        const parsed = parseInt(saved, 10);
+        return (Number.isFinite(parsed) && parsed >= 1) ? parsed : 1;
       } catch (e) {
         return 1;
       }
     }
 
-    saveHighestLevel(val) {
+    saveHighestUnlockedLevel(val) {
       try {
-        localStorage.setItem(STORAGE_KEY_LEVEL, val.toString());
+        const n = Math.max(1, Math.floor(Number(val) || 1));
+        const currentHighest = this.loadHighestUnlockedLevel();
+        const toSave = Math.max(currentHighest, n);
+        localStorage.setItem(STORAGE_KEY_LEVEL, toSave.toString());
+        this.highestUnlockedLevel = toSave;
+      } catch (e) {}
+    }
+
+    loadHighestLevel() {
+      return this.loadHighestUnlockedLevel();
+    }
+
+    saveHighestLevel(val) {
+      this.saveHighestUnlockedLevel(val);
+    }
+
+    loadLastPlayedLevel() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_LAST_PLAYED);
+        if (!saved) return 1;
+        const parsed = parseInt(saved, 10);
+        if (!Number.isFinite(parsed) || parsed < 1) return 1;
+        const highest = this.highestUnlockedLevel || this.loadHighestUnlockedLevel();
+        return Math.min(parsed, highest);
+      } catch (e) {
+        return 1;
+      }
+    }
+
+    saveLastPlayedLevel(val) {
+      try {
+        const n = Math.max(1, Math.floor(Number(val) || 1));
+        const highest = this.highestUnlockedLevel || this.loadHighestUnlockedLevel();
+        const clamped = Math.min(n, highest);
+        localStorage.setItem(STORAGE_KEY_LAST_PLAYED, clamped.toString());
+        this.lastPlayedLevel = clamped;
       } catch (e) {}
     }
 
@@ -1568,6 +1950,11 @@
       this.gameOverScreen.classList.toggle('hidden', newState !== STATE.GAMEOVER);
       this.gameOverScreen.classList.toggle('active', newState === STATE.GAMEOVER);
 
+      if (this.levelSelectScreen) {
+        this.levelSelectScreen.classList.toggle('hidden', newState !== STATE.LEVEL_SELECT);
+        this.levelSelectScreen.classList.toggle('active', newState === STATE.LEVEL_SELECT);
+      }
+
       // HUD Visibility
       this.gameHud.style.display = (newState === STATE.PLAYING || newState === STATE.PAUSED) ? 'flex' : 'none';
 
@@ -1577,17 +1964,318 @@
         this.touchControls.classList.toggle('controls-inactive', !isPlaying);
       }
 
+      if (newState === STATE.LEVEL_SELECT) {
+        this.renderLevelSelectUI();
+      }
+
       // Blur / Unfocus buttons so Enter key doesn't trigger unexpected clicks
       if (document.activeElement && document.activeElement.blur) {
         document.activeElement.blur();
       }
     }
 
-    startNewGame() {
+    // --- World & Portal Progression System ---
+    getWorldForLevel(lvl) {
+      const n = Math.floor(Number(lvl));
+      if (!Number.isFinite(n) || n <= 0) return 1;
+      return Math.floor((n - 1) / 12) + 1;
+    }
+
+    getWorldStartLevel(w) {
+      const worldNum = Math.floor(Number(w));
+      if (!Number.isFinite(worldNum) || worldNum <= 0) return 1;
+      return (worldNum - 1) * 12 + 1;
+    }
+
+    getWorldEndLevel(w) {
+      const worldNum = Math.floor(Number(w));
+      if (!Number.isFinite(worldNum) || worldNum <= 0) return 12;
+      return worldNum * 12;
+    }
+
+    isWorldUnlocked(w) {
+      const worldNum = Math.floor(Number(w));
+      if (!Number.isFinite(worldNum) || worldNum <= 1) return true;
+      return this.highestUnlockedLevel >= (worldNum - 1) * 12;
+    }
+
+    isPortalUnlocked(w) {
+      const worldNum = Math.floor(Number(w));
+      if (!Number.isFinite(worldNum) || worldNum <= 0) return false;
+      return this.highestUnlockedLevel >= worldNum * 12;
+    }
+
+    getMaxAccessibleWorld() {
+      return Math.max(1, Math.floor(this.highestUnlockedLevel / 12) + 1);
+    }
+
+    goToPrevWorld() {
+      if (this.currentWorld > 1) {
+        this.currentWorld--;
+        if (this.sound && this.sound.playOrbCollect) {
+          this.sound.playOrbCollect();
+        }
+        this.renderLevelSelectUI();
+      }
+    }
+
+    goToNextWorld() {
+      if (this.isPortalUnlocked(this.currentWorld)) {
+        this.currentWorld++;
+        if (this.sound && this.sound.playStarCollect) {
+          this.sound.playStarCollect();
+        }
+        this.renderLevelSelectUI();
+      }
+    }
+
+    openLevelSelect(preferredWorld = null) {
+      if (typeof preferredWorld === 'number' && Number.isFinite(preferredWorld) && preferredWorld >= 1) {
+        this.currentWorld = Math.floor(preferredWorld);
+      } else {
+        this.currentWorld = this.getWorldForLevel(this.lastPlayedLevel);
+      }
+      this.currentWorld = Math.max(1, Math.min(this.currentWorld, this.getMaxAccessibleWorld()));
+      this.setGameState(STATE.LEVEL_SELECT);
+      this.renderLevelSelectUI();
+    }
+
+    renderLevelSelectUI() {
+      // Ensure last-played level never exceeds highest unlocked level
+      this.lastPlayedLevel = Math.min(Math.max(1, this.lastPlayedLevel || 1), this.highestUnlockedLevel);
+
+      // Ensure currentWorld is valid and accessible
+      const maxWorld = this.getMaxAccessibleWorld();
+      this.currentWorld = Math.max(1, Math.min(this.currentWorld || 1, maxWorld));
+
+      const startLvl = this.getWorldStartLevel(this.currentWorld);
+      const endLvl = this.getWorldEndLevel(this.currentWorld);
+
+      if (this.continueLevelTitle) {
+        this.continueLevelTitle.textContent = `CONTINUE LEVEL ${this.lastPlayedLevel}`;
+      }
+      if (this.levelSelectProgressSub) {
+        this.levelSelectProgressSub.textContent = `${this.highestUnlockedLevel} UNLOCKED`;
+      }
+      if (this.worldTitleText) {
+        this.worldTitleText.textContent = `WORLD ${this.currentWorld}`;
+      }
+      if (this.worldRangeText) {
+        this.worldRangeText.textContent = `LEVELS ${startLvl}–${endLvl}`;
+      }
+
+      const canGoPrev = this.currentWorld > 1;
+      const canGoNext = this.isPortalUnlocked(this.currentWorld);
+
+      if (this.prevWorldBtn) {
+        this.prevWorldBtn.disabled = !canGoPrev;
+        this.prevWorldBtn.classList.toggle('disabled', !canGoPrev);
+        this.prevWorldBtn.setAttribute('aria-disabled', canGoPrev ? 'false' : 'true');
+      }
+      if (this.nextWorldBtn) {
+        this.nextWorldBtn.disabled = !canGoNext;
+        this.nextWorldBtn.classList.toggle('disabled', !canGoNext);
+        this.nextWorldBtn.setAttribute('aria-disabled', canGoNext ? 'false' : 'true');
+      }
+
+      this.renderLevelGrid();
+    }
+
+    renderLevelGrid() {
+      if (!this.levelCardsGrid) return;
+
+      this.levelCardsGrid.innerHTML = '';
+
+      const startLvl = this.getWorldStartLevel(this.currentWorld);
+      const endLvl = this.getWorldEndLevel(this.currentWorld);
+
+      // Render the 12 levels for the current world
+      for (let lvl = startLvl; lvl <= endLvl; lvl++) {
+        const isUnlocked = lvl <= this.highestUnlockedLevel;
+        const isCurrent = lvl === this.lastPlayedLevel;
+        const starRating = this.levelBestRatings[lvl] || 0;
+        const targetAlt = getLevelMilestone(lvl);
+
+        const card = document.createElement('div');
+        card.className = `level-card ${isUnlocked ? 'unlocked' : 'locked'}${isCurrent ? ' current' : ''}`;
+        card.setAttribute('role', 'listitem');
+        card.setAttribute('data-level', String(lvl));
+
+        if (isUnlocked) {
+          card.setAttribute('tabindex', '0');
+          card.setAttribute('aria-label', `Level ${lvl}, Unlocked, ${starRating} stars earned, target ${targetAlt} altitude`);
+
+          let badgeHtml = '';
+          if (isCurrent) {
+            badgeHtml = '<span class="card-status-badge active-badge">ACTIVE</span>';
+          } else if (starRating > 0 || lvl < this.highestUnlockedLevel) {
+            badgeHtml = '<span class="card-status-badge cleared-badge">CLEAR</span>';
+          }
+
+          const star1 = starRating >= 1 ? 'earned' : '';
+          const star2 = starRating >= 2 ? 'earned' : '';
+          const star3 = starRating >= 3 ? 'earned' : '';
+
+          card.innerHTML = `
+            <div class="card-header-row">
+              <span class="card-level-num">LVL ${lvl}</span>
+              ${badgeHtml}
+            </div>
+            <div class="card-mid-zone">
+              <div class="card-stars-row" aria-label="${starRating} out of 3 stars">
+                <span class="card-star ${star1}">★</span>
+                <span class="card-star ${star2}">★</span>
+                <span class="card-star ${star3}">★</span>
+              </div>
+            </div>
+            <div class="card-footer-row">
+              <span class="card-target-text">${targetAlt} ALT</span>
+            </div>
+          `;
+
+          bindButtonAction(card, () => {
+            this.selectedLevel = lvl;
+            this.startNewGame(lvl);
+          });
+
+          card.addEventListener('keydown', (e) => {
+            if (e.code === 'Enter' || e.code === 'Space') {
+              e.preventDefault();
+              this.selectedLevel = lvl;
+              this.startNewGame(lvl);
+            }
+          });
+        } else {
+          card.setAttribute('aria-disabled', 'true');
+          card.setAttribute('aria-label', `Level ${lvl}, Locked. Reach Level ${lvl} to unlock.`);
+
+          card.innerHTML = `
+            <div class="card-header-row">
+              <span class="card-level-num">LVL ${lvl}</span>
+            </div>
+            <div class="card-mid-zone">
+              <div class="card-lock-center">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+                </svg>
+                <span class="card-lock-text">LOCKED</span>
+              </div>
+            </div>
+            <div class="card-footer-row">
+              <span class="card-target-text">REACH LVL ${lvl}</span>
+            </div>
+          `;
+
+          card.addEventListener('click', (e) => {
+            if (e && e.preventDefault) e.preventDefault();
+            card.classList.remove('locked-shake');
+            void card.offsetWidth;
+            card.classList.add('locked-shake');
+          });
+        }
+
+        this.levelCardsGrid.appendChild(card);
+      }
+
+      // Render the futuristic dimensional portal to next world
+      const nextWorld = this.currentWorld + 1;
+      const portalUnlocked = this.isPortalUnlocked(this.currentWorld);
+      const nextWorldStart = this.getWorldStartLevel(nextWorld);
+      const nextWorldEnd = this.getWorldEndLevel(nextWorld);
+
+      const portalCard = document.createElement('div');
+      portalCard.className = `world-portal-card ${portalUnlocked ? 'unlocked' : 'locked'}`;
+      portalCard.setAttribute('role', 'button');
+      portalCard.setAttribute('data-target-world', String(nextWorld));
+
+      if (portalUnlocked) {
+        portalCard.setAttribute('tabindex', '0');
+        portalCard.setAttribute('aria-label', `Dimensional Portal to World ${nextWorld}. Gateway unlocked. Warp to Levels ${nextWorldStart} through ${nextWorldEnd}.`);
+
+        portalCard.innerHTML = `
+          <div class="portal-vortex-aura"></div>
+          <div class="portal-left-group">
+            <div class="portal-icon-wrapper">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" fill="none" stroke-dasharray="6 3"/>
+                <circle cx="12" cy="12" r="4" fill="currentColor"/>
+              </svg>
+            </div>
+            <div class="portal-text-group">
+              <span class="portal-kicker">DIMENSIONAL GATEWAY</span>
+              <span class="portal-title">WORLD ${nextWorld}</span>
+              <span class="portal-subtext">LEVELS ${nextWorldStart}–${nextWorldEnd}</span>
+            </div>
+          </div>
+          <div class="portal-action-badge">WARP &rarr;</div>
+        `;
+
+        bindButtonAction(portalCard, () => {
+          this.goToNextWorld();
+        });
+
+        portalCard.addEventListener('keydown', (e) => {
+          if (e.code === 'Enter' || e.code === 'Space') {
+            e.preventDefault();
+            this.goToNextWorld();
+          }
+        });
+      } else {
+        portalCard.setAttribute('aria-disabled', 'true');
+        portalCard.setAttribute('aria-label', `Dimensional Portal to World ${nextWorld}. Locked. Reach Level ${endLvl} to unlock.`);
+
+        portalCard.innerHTML = `
+          <div class="portal-left-group">
+            <div class="portal-icon-wrapper">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+              </svg>
+            </div>
+            <div class="portal-text-group">
+              <span class="portal-kicker">SEALED GATEWAY</span>
+              <span class="portal-title">WORLD ${nextWorld}</span>
+              <span class="portal-subtext">REACH LEVEL ${endLvl} TO UNLOCK</span>
+            </div>
+          </div>
+          <div class="portal-action-badge">LOCKED</div>
+        `;
+
+        portalCard.addEventListener('click', (e) => {
+          if (e && e.preventDefault) e.preventDefault();
+          portalCard.classList.remove('locked-shake');
+          void portalCard.offsetWidth;
+          portalCard.classList.add('locked-shake');
+        });
+      }
+
+      this.levelCardsGrid.appendChild(portalCard);
+    }
+
+    startNewGame(levelToStart = null) {
       this.sound.init();
-      this.score = 0;
-      this.maxAltitude = 0;
-      this.level = 1;
+
+      // Determine starting level
+      let targetLevel = 1;
+      if (typeof levelToStart === 'number' && Number.isFinite(levelToStart) && levelToStart >= 1) {
+        targetLevel = Math.floor(levelToStart);
+      } else if (this.selectedLevel) {
+        targetLevel = this.selectedLevel;
+      } else if (this.lastPlayedLevel) {
+        targetLevel = this.lastPlayedLevel;
+      }
+
+      // Ensure last-played and starting level can never exceed highest unlocked level
+      const validatedLevel = Math.min(Math.max(1, targetLevel), this.highestUnlockedLevel);
+
+      this.level = validatedLevel;
+      this.selectedLevel = validatedLevel;
+      this.lastPlayedLevel = validatedLevel;
+      this.saveLastPlayedLevel(validatedLevel);
+
+      // Base altitude for selected level
+      this.startAltitude = (validatedLevel === 1) ? 0 : getLevelMilestone(validatedLevel - 1);
+      this.score = this.startAltitude;
+      this.maxAltitude = this.startAltitude;
       this.cameraY = 0;
       this.isNewRecord = false;
       this.runOrbs = 0;
@@ -1596,7 +2284,7 @@
       this.specialStars = [];
       this.lastStarGeneratedY = 600;
       this.runResultsProcessed = false;
-      this.newBestTag.classList.add('hidden');
+      if (this.newBestTag) this.newBestTag.classList.add('hidden');
       if (this.levelBanner) this.levelBanner.classList.add('hidden');
 
       // Reset Ball
@@ -1605,8 +2293,8 @@
       this.ball.hasAirJump = false;
       this.particles.reset();
 
-      // Reset Initial Platforms (Level 1 start: completely hazard free)
-      // Generous stationary base, moving tier 1, stationary tier 2 (clean visual shapes, no text labels)
+      // Reset Initial Platforms:
+      // Generous stationary base at y=620 ensures safe spawn landing on all levels
       this.platforms = [
         new Platform(100, 620, 280, 18, 0, 0, CANVAS_WIDTH, null),
         new Platform(80, 440, 140, 16, -75, 30, 310, null),
@@ -1618,11 +2306,11 @@
       this.collectibles.push(new CollectibleOrb(150, 395));
       this.collectibles.push(new CollectibleOrb(300, 215));
 
-      // Reset theme instantly to Level 1
-      this.themeManager.setLevel(1, true);
+      // Reset theme instantly to selected level
+      this.themeManager.setLevel(this.level, true);
       this.applyThemeToHUD();
 
-      // Generate initial buffer of platforms above Tier 2
+      // Generate initial buffer of platforms above Tier 2 matching level difficulty
       this.generatePlatformsAhead();
 
       this.updateScoreDisplays();
@@ -1657,9 +2345,8 @@
       }
 
       // Check highest level reached
-      if (this.level > this.highestLevelCompleted) {
-        this.highestLevelCompleted = this.level;
-        this.saveHighestLevel(this.highestLevelCompleted);
+      if (this.level > this.highestUnlockedLevel) {
+        this.saveHighestUnlockedLevel(this.level);
       }
 
       // 1. Calculate Three-Star Performance Rating for this run
@@ -1738,15 +2425,23 @@
       const theme = this.themeManager.getColors();
       if (this.hudLevelText) {
         this.hudLevelText.style.color = theme.primary;
-        this.hudLevelText.style.textShadow = `0 0 10px ${theme.primaryAlpha(0.8)}`;
+        this.hudLevelText.style.textShadow = `0 0 10px ${theme.primaryAlpha(0.85)}`;
       }
       if (this.hudLevelProgress) {
         this.hudLevelProgress.style.background = `linear-gradient(90deg, ${theme.secondary}, ${theme.primary})`;
-        this.hudLevelProgress.style.boxShadow = `0 0 8px ${theme.primaryAlpha(0.8)}`;
+        this.hudLevelProgress.style.boxShadow = `0 0 10px ${theme.primaryAlpha(0.85)}`;
       }
       const track = this.hudLevelProgress ? this.hudLevelProgress.parentElement : null;
       if (track) {
-        track.style.borderColor = theme.primaryAlpha(0.4);
+        track.style.borderColor = theme.primaryAlpha(0.45);
+      }
+      if (this.gameHud) {
+        this.gameHud.style.borderColor = theme.primaryAlpha(0.38);
+        this.gameHud.style.boxShadow = `0 4px 18px rgba(0, 0, 0, 0.5), 0 0 14px ${theme.primaryAlpha(0.22)}`;
+      }
+      if (this.hudScore) {
+        this.hudScore.style.color = theme.primary;
+        this.hudScore.style.textShadow = `0 0 10px ${theme.primaryAlpha(0.65)}`;
       }
     }
 
@@ -1796,7 +2491,7 @@
         this.highestGeneratedY = newY;
 
         // Current altitude in world space for progressive difficulty
-        const altitude = Math.max(0, (BASE_ALTITUDE_Y - newY) / 2);
+        const altitude = (this.startAltitude || 0) + Math.max(0, (BASE_ALTITUDE_Y - newY) / 2);
 
         // Platform width
         let width = 140;
@@ -1928,7 +2623,7 @@
       }
 
       // Memory cleanup: Recycle/remove platforms & collectibles far below camera view
-      const removeThresholdY = this.cameraY + CANVAS_HEIGHT + 240;
+      const removeThresholdY = this.cameraY + (this.canvasHeight || CANVAS_HEIGHT) + 240;
       this.platforms = this.platforms.filter(p => p.y <= removeThresholdY);
       this.collectibles = this.collectibles.filter(o => o.y <= removeThresholdY && !o.collected);
       this.specialStars = this.specialStars.filter(s => s.y <= removeThresholdY && !s.collected);
@@ -1962,12 +2657,18 @@
           // Edge-triggered: exactly one action per key press
           this.handleAirJump();
         } else if (e.code === 'Escape' || e.code === 'KeyP') {
-          if (this.currentState === STATE.PLAYING || this.currentState === STATE.PAUSED) {
+          if (this.currentState === STATE.LEVEL_SELECT) {
+            this.setGameState(STATE.MENU);
+          } else if (this.currentState === STATE.PLAYING || this.currentState === STATE.PAUSED) {
             this.togglePause();
           }
         } else if (e.code === 'Enter' || e.code === 'Space') {
-          if (this.currentState === STATE.MENU || this.currentState === STATE.GAMEOVER) {
-            this.startNewGame();
+          if (this.currentState === STATE.MENU) {
+            this.startNewGame(this.lastPlayedLevel);
+          } else if (this.currentState === STATE.LEVEL_SELECT) {
+            this.startNewGame(this.lastPlayedLevel);
+          } else if (this.currentState === STATE.GAMEOVER) {
+            this.startNewGame(this.selectedLevel || this.lastPlayedLevel);
           } else if (this.currentState === STATE.PAUSED) {
             this.togglePause();
           }
@@ -2004,10 +2705,10 @@
       });
 
       // UI Buttons (using bindButtonAction for fast mobile touchend + desktop click)
-      bindButtonAction(this.playBtn, () => this.startNewGame());
+      bindButtonAction(this.playBtn, () => this.startNewGame(this.lastPlayedLevel));
       bindButtonAction(this.resumeBtn, () => this.togglePause());
-      bindButtonAction(this.restartBtn, () => this.startNewGame());
-      bindButtonAction(this.restartFromPauseBtn, () => this.startNewGame());
+      bindButtonAction(this.restartBtn, () => this.startNewGame(this.selectedLevel || this.lastPlayedLevel));
+      bindButtonAction(this.restartFromPauseBtn, () => this.startNewGame(this.selectedLevel || this.lastPlayedLevel));
       bindButtonAction(this.pauseBtn, () => this.togglePause());
       if (this.soundBtn) {
         bindButtonAction(this.soundBtn, () => this.toggleSound());
@@ -2019,6 +2720,68 @@
         });
       }
 
+      // Level Selection Screen buttons
+      if (this.levelsBtn) {
+        bindButtonAction(this.levelsBtn, () => {
+          this.openLevelSelect();
+        });
+      }
+      if (this.continueLevelBtn) {
+        bindButtonAction(this.continueLevelBtn, () => {
+          this.startNewGame(this.lastPlayedLevel);
+        });
+      }
+      if (this.levelSelectBackBtn) {
+        bindButtonAction(this.levelSelectBackBtn, () => {
+          this.setGameState(STATE.MENU);
+          this.updateScoreDisplays();
+        });
+      }
+      if (this.resultsLevelsBtn) {
+        bindButtonAction(this.resultsLevelsBtn, () => {
+          this.openLevelSelect();
+        });
+      }
+      if (this.pauseLevelsBtn) {
+        bindButtonAction(this.pauseLevelsBtn, () => {
+          this.openLevelSelect();
+        });
+      }
+      if (this.prevWorldBtn) {
+        bindButtonAction(this.prevWorldBtn, () => {
+          this.goToPrevWorld();
+        });
+      }
+      if (this.nextWorldBtn) {
+        bindButtonAction(this.nextWorldBtn, () => {
+          this.goToNextWorld();
+        });
+      }
+
+      // Responsive Viewport Resize & Orientation Change
+      if (typeof window !== 'undefined') {
+        window.addEventListener('resize', () => {
+          this.updateCanvasDimensions();
+          if (this.currentState === STATE.PLAYING && this.ball) {
+            const minTopOffset = Math.round(this.canvasHeight * 0.34);
+            if (this.ball.y - this.cameraY < minTopOffset) {
+              this.cameraY = this.ball.y - minTopOffset;
+            }
+          }
+        });
+
+        if (window.visualViewport) {
+          window.visualViewport.addEventListener('resize', () => {
+            this.updateCanvasDimensions();
+          });
+        }
+
+        window.addEventListener('orientationchange', () => {
+          setTimeout(() => {
+            this.updateCanvasDimensions();
+          }, 60);
+        });
+      }
     }
 
     // --- Mobile Floating Controls (Reliable Multi-Touch Pointer Events) ---
@@ -2385,22 +3148,26 @@
       this.applyThemeToHUD();
 
       // Camera: Vertical follow upward
-      // Keeps ball comfortably positioned on screen (~360px from top)
-      const targetCameraY = this.ball.y - 360;
+      // Keeps ball comfortably positioned on screen (~52% from top)
+      const currentH = this.canvasHeight || CANVAS_HEIGHT;
+      const targetOffset = Math.round(currentH * 0.52);
+      const minTopOffset = Math.round(currentH * 0.34);
+      const targetCameraY = this.ball.y - targetOffset;
       if (targetCameraY < this.cameraY) {
         // Smooth upward scroll
         this.cameraY += (targetCameraY - this.cameraY) * Math.min(1, dt * 9);
       }
-      // Never allow ball to rise above top 240px without camera keeping up
-      if (this.ball.y - this.cameraY < 240) {
-        this.cameraY = this.ball.y - 240;
+      // Never allow ball to rise above top threshold without camera keeping up
+      if (this.ball.y - this.cameraY < minTopOffset) {
+        this.cameraY = this.ball.y - minTopOffset;
       }
 
       // Generate upcoming platforms ahead & cleanup far-below platforms
       this.generatePlatformsAhead();
 
-      // Scoring calculation (Altitude above base platform)
-      const currentAltitude = Math.max(0, Math.floor((BASE_ALTITUDE_Y - this.ball.y) / 2));
+      // Scoring calculation (Altitude above base platform + starting milestone altitude)
+      const currentClimb = Math.max(0, Math.floor((BASE_ALTITUDE_Y - this.ball.y) / 2));
+      const currentAltitude = (this.startAltitude || 0) + currentClimb;
       if (currentAltitude > this.maxAltitude) {
         this.maxAltitude = currentAltitude;
         this.score = this.maxAltitude;
@@ -2417,10 +3184,11 @@
         this.showLevelBanner(this.level);
         this.sound.playLevelComplete();
 
-        if (this.level > this.highestLevelCompleted) {
-          this.highestLevelCompleted = this.level;
-          this.saveHighestLevel(this.level);
+        if (this.level > this.highestUnlockedLevel) {
+          this.saveHighestUnlockedLevel(this.level);
         }
+        this.lastPlayedLevel = this.level;
+        this.saveLastPlayedLevel(this.level);
       }
 
       // Update Progress Bar
@@ -2433,7 +3201,7 @@
       this.updateScoreDisplays();
 
       // Game Over detection: Ball falls below bottom edge of screen viewport
-      if (this.ball.y - this.cameraY - this.ball.radius > CANVAS_HEIGHT) {
+      if (this.ball.y - this.cameraY - this.ball.radius > currentH) {
         this.triggerGameOver('The orb fell into the void');
       }
     }
@@ -2560,13 +3328,13 @@
     // --- Rendering ---
     render() {
       // Clear canvas
-      this.ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      // Render Parallax Background (uses cameraY for parallax scroll)
-      this.background.render(this.ctx, this.cameraY);
+      this.ctx.clearRect(0, 0, CANVAS_WIDTH, this.canvasHeight || CANVAS_HEIGHT);
 
       // Get active interpolated theme colors
       const theme = this.themeManager.getColors();
+
+      // Render Parallax Background (uses cameraY for parallax scroll, theme for ambient cyber lighting)
+      this.background.render(this.ctx, this.cameraY, theme);
 
       // Render World Entities (Platforms, Hazards, Particles, Ball)
       // Transformed by Camera Y offset
@@ -2634,6 +3402,10 @@
     window.MOVE_BRAKE_ACCEL_X = MOVE_BRAKE_ACCEL_X;
     window.MOVE_DECEL_X = MOVE_DECEL_X;
     window.MAX_SPEED_X = MAX_SPEED_X;
+    window.LEVEL_THEMES = LEVEL_THEMES;
+    window.ThemeManager = ThemeManager;
+    window.getThemeIndexForLevel = getThemeIndexForLevel;
+    window.getThemeForLevel = getThemeForLevel;
   }
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -2646,6 +3418,10 @@
       MOVE_BRAKE_ACCEL_X,
       MOVE_DECEL_X,
       MAX_SPEED_X,
+      LEVEL_THEMES,
+      ThemeManager,
+      getThemeIndexForLevel,
+      getThemeForLevel,
     };
   }
 

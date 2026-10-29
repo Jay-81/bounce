@@ -19,6 +19,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
 
 // Setup comprehensive DOM mocks in Node environment before loading game.js
 function setupDOMMocks() {
@@ -678,4 +680,213 @@ test('18. Mobile menu navigation buttons respond to click and touchend with debo
     preventDefault: () => {},
   });
   assert.strictEqual(game.currentState, STATE.PLAYING, 'resumeBtn resumes game');
+});
+
+// ---------------------------------------------------------------------------
+// 12. Mobile Touch Control Layout & Single Horizontal Row Refinement
+// ---------------------------------------------------------------------------
+test('19. Button arrangement: all 4 controls in single horizontal row in exact order LEFT -> DIVE -> JUMP -> RIGHT', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+
+  // Verify the touchControls container exists
+  assert.ok(html.includes('id="touchControls"'), 'touchControls container exists in HTML');
+
+  // Extract the touchControls section
+  const controlsStart = html.indexOf('id="touchControls"');
+  assert.ok(controlsStart !== -1, 'Found touchControls');
+  const controlsEnd = html.indexOf('</div>', controlsStart);
+  const controlsBlock = html.slice(controlsStart, controlsEnd);
+
+  // Find occurrences of all 4 button IDs inside touchControls
+  const leftIdx = controlsBlock.indexOf('id="touchLeft"');
+  const downIdx = controlsBlock.indexOf('id="touchDown"');
+  const upIdx = controlsBlock.indexOf('id="touchUp"');
+  const rightIdx = controlsBlock.indexOf('id="touchRight"');
+
+  assert.ok(leftIdx !== -1, 'touchLeft button exists in touchControls');
+  assert.ok(downIdx !== -1, 'touchDown (DIVE) button exists in touchControls');
+  assert.ok(upIdx !== -1, 'touchUp (JUMP) button exists in touchControls');
+  assert.ok(rightIdx !== -1, 'touchRight button exists in touchControls');
+
+  // Strict left-to-right order: LEFT -> DIVE -> JUMP -> RIGHT
+  assert.ok(leftIdx < downIdx, 'LEFT is positioned before DIVE');
+  assert.ok(downIdx < upIdx, 'DIVE is positioned before JUMP');
+  assert.ok(upIdx < rightIdx, 'JUMP is positioned before RIGHT');
+
+  // Verify no nested two-row or stacked wrapper structure
+  assert.ok(!controlsBlock.includes('touch-cluster'), 'touch-cluster wrappers removed; single direct horizontal row');
+
+  // Verify labels and aria-labels
+  assert.ok(controlsBlock.includes('aria-label="Steer Left"'), 'touchLeft has accessible aria-label');
+  assert.ok(controlsBlock.includes('aria-label="Dive Down"'), 'touchDown has accessible aria-label');
+  assert.ok(controlsBlock.includes('aria-label="Air Jump"'), 'touchUp has accessible aria-label');
+  assert.ok(controlsBlock.includes('aria-label="Steer Right"'), 'touchRight has accessible aria-label');
+
+  assert.ok(controlsBlock.includes('LEFT'), 'LEFT label displayed');
+  assert.ok(controlsBlock.includes('DIVE'), 'DIVE label displayed');
+  assert.ok(controlsBlock.includes('JUMP'), 'JUMP label displayed');
+  assert.ok(controlsBlock.includes('RIGHT'), 'RIGHT label displayed');
+});
+
+test('20. CSS layout & spacing: single horizontal row, safe area insets, central thumb separation, and responsive sizing', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+  // Verify touch-controls flex row layout
+  assert.ok(css.includes('flex-direction: row;'), 'touch-controls explicitly styled as flex row');
+  assert.ok(css.includes('justify-content: space-between;'), 'touch-controls styled with space-between');
+  assert.ok(css.includes('align-items: center;'), 'touch-controls vertically aligned center');
+
+  // Verify central separation: margin-right: auto on DIVE (.btn-down)
+  assert.ok(/\.touch-btn\.btn-down[^{]*\{[^}]*margin-right:\s*auto/s.test(css), 'DIVE button has margin-right: auto for central two-thumb separation');
+
+  // Verify safe area inset handling to respect Android navigation bar
+  assert.ok(css.includes('env(safe-area-inset-bottom)'), 'Bottom padding respects env(safe-area-inset-bottom)');
+  assert.ok(css.includes('env(safe-area-inset-left)'), 'Left padding respects env(safe-area-inset-left)');
+  assert.ok(css.includes('env(safe-area-inset-right)'), 'Right padding respects env(safe-area-inset-right)');
+
+  // Verify responsive sizing rules for narrow mobile phones
+  assert.ok(css.includes('@media (max-width: 380px)'), 'Responsive rule for narrow phones (<= 380px)');
+  assert.ok(css.includes('@media (max-width: 330px)'), 'Responsive rule for ultra-narrow phones (<= 330px)');
+});
+
+test('21. Two-thumb simultaneous multi-touch combinations with new control row arrangement', () => {
+  const game = createGameInstance();
+  game.startNewGame();
+  assert.strictEqual(game.currentState, STATE.PLAYING);
+
+  // Left thumb: hold LEFT (pointer 101)
+  game.touchLeft.dispatchEvent(createPointerEvent('pointerdown', { pointerId: 101 }));
+  assert.strictEqual(game.keys.left, true);
+  game.physicsSubStep(0.05);
+  assert.strictEqual(game.ball.vx < 0, true, 'Moving left');
+
+  // Left thumb: simultaneously press DIVE (pointer 102)
+  game.touchDown.dispatchEvent(createPointerEvent('pointerdown', { pointerId: 102 }));
+  assert.strictEqual(game.keys.left, true, 'LEFT still held');
+  assert.strictEqual(game.keys.down, true, 'DIVE simultaneously active');
+
+  // Right thumb: simultaneously press JUMP (pointer 103)
+  game.ball.hasAirJump = true;
+  game.ball.vy = 200;
+  game.touchUp.dispatchEvent(createPointerEvent('pointerdown', { pointerId: 103 }));
+  assert.strictEqual(game.ball.hasAirJump, false, 'Air jump consumed');
+  assert.ok(game.ball.vy < 0, 'JUMP executed air jump while LEFT and DIVE held');
+
+  // Release DIVE (pointer 102) -> LEFT should remain held
+  game.touchDown.dispatchEvent(createPointerEvent('pointerup', { pointerId: 102 }));
+  assert.strictEqual(game.keys.down, false, 'DIVE released');
+  assert.strictEqual(game.keys.left, true, 'LEFT still held after DIVE released');
+
+  // Right thumb: hold RIGHT (pointer 104) while LEFT is still held
+  game.touchRight.dispatchEvent(createPointerEvent('pointerdown', { pointerId: 104 }));
+  assert.strictEqual(game.keys.left, true);
+  assert.strictEqual(game.keys.right, true);
+
+  // Release LEFT (pointer 101) -> RIGHT remains held
+  game.touchLeft.dispatchEvent(createPointerEvent('pointerup', { pointerId: 101 }));
+  assert.strictEqual(game.keys.left, false);
+  assert.strictEqual(game.keys.right, true);
+
+  // Clean up remaining pointers
+  game.touchRight.dispatchEvent(createPointerEvent('pointerup', { pointerId: 104 }));
+  assert.strictEqual(game.keys.right, false);
+});
+
+// ---------------------------------------------------------------------------
+// 13. Top HUD Responsive Layout & Overflow Prevention
+// ---------------------------------------------------------------------------
+test('22. Top HUD mobile responsiveness: no horizontal overflow on narrow viewports, pause and sound buttons fully visible', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+  // 1. Verify required DOM elements exist inside the gameHud
+  const hudStart = html.indexOf('id="gameHud"');
+  assert.ok(hudStart !== -1, 'gameHud exists in HTML');
+  const hudEnd = html.indexOf('<!-- Level Milestone', hudStart);
+  const hudMarkup = html.slice(hudStart, hudEnd);
+
+  assert.ok(hudMarkup.includes('id="hudLevelText"'), 'HUD level indicator text exists');
+  assert.ok(hudMarkup.includes('id="hudLevelProgress"'), 'HUD level progress bar exists');
+  assert.ok(hudMarkup.includes('id="hudScore"'), 'HUD score (altitude) exists');
+  assert.ok(hudMarkup.includes('id="hudBest"'), 'HUD best score exists');
+  assert.ok(hudMarkup.includes('id="hudRunOrbs"'), 'HUD energy orbs counter exists');
+  assert.ok(hudMarkup.includes('id="hudRunStars"'), 'HUD special stars counter exists');
+  assert.ok(hudMarkup.includes('id="soundBtn"'), 'HUD sound toggle button exists');
+  assert.ok(hudMarkup.includes('id="pauseBtn"'), 'HUD pause button exists');
+
+  // 2. Verify CSS prevents overflow and preserves action buttons
+  assert.ok(css.includes('.game-hud'), 'game-hud class styled in CSS');
+  assert.ok(css.includes('box-sizing: border-box;'), 'game-hud has box-sizing: border-box');
+
+  // Actions group must have flex-shrink: 0 so sound and pause buttons are never compressed or clipped
+  assert.ok(
+    /\.hud-actions-group\s*\{[^}]*flex-shrink:\s*0/s.test(css),
+    '.hud-actions-group has flex-shrink: 0 to prevent button compression'
+  );
+  assert.ok(
+    /\.icon-btn\s*\{[^}]*flex-shrink:\s*0/s.test(css),
+    '.icon-btn has flex-shrink: 0'
+  );
+
+  // Level group must be flexible and avoid rigid oversized min-width
+  assert.ok(
+    !/\.hud-level-group\s*\{[^}]*min-width:\s*78px/s.test(css),
+    'Removed rigid 78px min-width from base .hud-level-group'
+  );
+
+  // Responsive breakpoints for mobile viewports
+  assert.ok(css.includes('@media (max-width: 600px)'), 'Mobile portrait breakpoint (<= 600px)');
+  assert.ok(css.includes('@media (max-width: 380px)'), 'Narrow mobile breakpoint (<= 380px)');
+  assert.ok(css.includes('@media (max-width: 330px)'), 'Ultra-narrow mobile breakpoint (<= 330px)');
+
+  // Safe area handling for notch and status bar
+  assert.ok(css.includes('env(safe-area-inset-top)'), 'HUD respects env(safe-area-inset-top)');
+  assert.ok(css.includes('env(safe-area-inset-left)'), 'HUD respects env(safe-area-inset-left)');
+  assert.ok(css.includes('env(safe-area-inset-right)'), 'HUD respects env(safe-area-inset-right)');
+});
+
+// ---------------------------------------------------------------------------
+test('23. Responsive canvas viewport scaling & letterbox prevention on tall mobile/Android screens', () => {
+  const css = fs.readFileSync(path.join(__dirname, '..', 'style.css'), 'utf8');
+
+  // Verify CSS: #gameCanvas must fill 100% of container and not use letterbox object-fit: contain
+  const canvasMatch = css.match(/#gameCanvas\s*\{([^}]+)\}/);
+  assert.ok(canvasMatch, '#gameCanvas is defined in style.css');
+  assert.ok(canvasMatch[1].includes('width: 100%'), '#gameCanvas has width: 100%');
+  assert.ok(canvasMatch[1].includes('height: 100%'), '#gameCanvas has height: 100%');
+  assert.ok(!canvasMatch[1].includes('object-fit: contain'), '#gameCanvas does not use object-fit: contain (prevents letterboxing)');
+
+  // Verify BounceGame dynamic canvas dimension scaling logic
+  const game = new BounceGame();
+
+  // Test 1: Standard aspect ratio (480 x 700)
+  game.container.clientWidth = 480;
+  game.container.clientHeight = 700;
+  game.updateCanvasDimensions();
+  assert.strictEqual(game.canvas.width, 480, 'Canvas logical width is 480');
+  assert.strictEqual(game.canvas.height, 700, 'Canvas logical height is 700 on 480x700 container');
+  assert.strictEqual(game.canvasHeight, 700);
+
+  // Test 2: Android Pixel viewport (412 x 915) -> 20:9 aspect ratio
+  game.container.clientWidth = 412;
+  game.container.clientHeight = 915;
+  game.updateCanvasDimensions();
+  const expectedAndroidHeight = Math.round(480 * (915 / 412)); // 1066
+  assert.strictEqual(game.canvas.width, 480, 'Canvas logical width remains fixed 480');
+  assert.strictEqual(game.canvas.height, expectedAndroidHeight, 'Canvas height matches 412x915 aspect ratio (~1066px)');
+  assert.strictEqual(game.canvasHeight, expectedAndroidHeight);
+
+  // Test 3: iPhone 14/15 Pro viewport (393 x 852) -> 19.5:9 aspect ratio
+  game.container.clientWidth = 393;
+  game.container.clientHeight = 852;
+  game.updateCanvasDimensions();
+  const expectedIPhoneHeight = Math.round(480 * (852 / 393)); // 1041
+  assert.strictEqual(game.canvas.width, 480);
+  assert.strictEqual(game.canvas.height, expectedIPhoneHeight, 'Canvas height matches 393x852 aspect ratio (~1041px)');
+
+  // Test 4: Camera follow offset adapts to screen height
+  const targetOffset = Math.round(game.canvasHeight * 0.52);
+  const minTopOffset = Math.round(game.canvasHeight * 0.34);
+  assert.ok(targetOffset > 500, 'Camera target offset scales proportionally to keep ball visible in lower half');
+  assert.ok(minTopOffset > 300, 'Camera min top offset scales proportionally for ample view ahead');
 });

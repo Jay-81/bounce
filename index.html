@@ -83,31 +83,24 @@
       <!-- Canvas rendering surface -->
       <canvas id="gameCanvas" width="480" height="700"></canvas>
 
-      <!-- Floating mobile touch controls (active during active mobile gameplay) -->
+      <!-- Floating mobile touch controls: single horizontal row [LEFT -> DIVE -> JUMP -> RIGHT] -->
       <div class="touch-controls floating-controls controls-inactive" id="touchControls" aria-label="Mobile Controls">
-        <!-- Lower-left region: LEFT and RIGHT steering cluster -->
-        <div class="touch-cluster cluster-left">
-          <button class="touch-btn floating-btn btn-steer btn-left" id="touchLeft" aria-label="Steer Left">
-            <span class="btn-icon touch-icon">&larr;</span>
-            <span class="btn-sublabel touch-sublabel">LEFT</span>
-          </button>
-          <button class="touch-btn floating-btn btn-steer btn-right" id="touchRight" aria-label="Steer Right">
-            <span class="btn-icon touch-icon">&rarr;</span>
-            <span class="btn-sublabel touch-sublabel">RIGHT</span>
-          </button>
-        </div>
-
-        <!-- Lower-right region: DOWN and JUMP action cluster -->
-        <div class="touch-cluster cluster-right">
-          <button class="touch-btn floating-btn btn-action btn-down" id="touchDown" aria-label="Dive Down">
-            <span class="btn-icon touch-icon">&darr;</span>
-            <span class="btn-sublabel touch-sublabel">DIVE</span>
-          </button>
-          <button class="touch-btn floating-btn btn-action btn-jump" id="touchUp" aria-label="Air Jump">
-            <span class="btn-icon touch-icon">&uarr;</span>
-            <span class="btn-sublabel touch-sublabel">JUMP</span>
-          </button>
-        </div>
+        <button class="touch-btn floating-btn btn-steer btn-left" id="touchLeft" aria-label="Steer Left">
+          <span class="btn-icon touch-icon">&larr;</span>
+          <span class="btn-sublabel touch-sublabel">LEFT</span>
+        </button>
+        <button class="touch-btn floating-btn btn-action btn-down" id="touchDown" aria-label="Dive Down">
+          <span class="btn-icon touch-icon">&darr;</span>
+          <span class="btn-sublabel touch-sublabel">DIVE</span>
+        </button>
+        <button class="touch-btn floating-btn btn-action btn-jump" id="touchUp" aria-label="Air Jump">
+          <span class="btn-icon touch-icon">&uarr;</span>
+          <span class="btn-sublabel touch-sublabel">JUMP</span>
+        </button>
+        <button class="touch-btn floating-btn btn-steer btn-right" id="touchRight" aria-label="Steer Right">
+          <span class="btn-icon touch-icon">&rarr;</span>
+          <span class="btn-sublabel touch-sublabel">RIGHT</span>
+        </button>
       </div>
 
       <!-- UI Overlays -->
@@ -123,7 +116,7 @@
             <h1 class="visually-hidden">BOUNCE</h1>
           </div>
 
-          <!-- Lower Portion: One Unmistakable, Prominent Arcade CLIMB Button -->
+          <!-- Lower Portion: One Unmistakable, Prominent Arcade CLIMB Button & Level Selection -->
           <div class="home-action-container">
             <button class="climb-btn" id="playBtn" aria-label="Start Climbing">
               <span class="climb-btn-content">
@@ -134,6 +127,17 @@
               </span>
               <div class="climb-btn-aura" aria-hidden="true"></div>
               <div class="climb-btn-sheen" aria-hidden="true"></div>
+            </button>
+            <button class="levels-menu-btn" id="levelsBtn" aria-label="Select Level">
+              <span class="levels-btn-content">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="3" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="3" width="7" height="7"></rect>
+                  <rect x="14" y="14" width="7" height="7"></rect>
+                  <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+                <span>SELECT LEVEL</span>
+              </span>
             </button>
           </div>
         </div>
@@ -152,6 +156,9 @@
             </button>
             <button class="neon-btn secondary-neon-btn" id="restartFromPauseBtn">
               <span>RESTART</span>
+            </button>
+            <button class="neon-btn secondary-neon-btn" id="pauseLevelsBtn">
+              <span>LEVELS</span>
             </button>
           </div>
         </div>
@@ -225,7 +232,7 @@
             </div>
           </div>
 
-          <!-- Actions Zone: CLIMB AGAIN (Dominant) & MAIN MENU (Secondary) -->
+          <!-- Actions Zone: CLIMB AGAIN (Dominant), SELECT LEVEL & MAIN MENU (Secondary) -->
           <div class="results-actions-zone">
             <button class="climb-again-btn" id="restartBtn" aria-label="Climb Again">
               <span class="btn-content">
@@ -237,9 +244,84 @@
               <div class="btn-aura" aria-hidden="true"></div>
               <div class="btn-sheen" aria-hidden="true"></div>
             </button>
-            <button class="menu-return-btn" id="menuReturnBtn" aria-label="Return to Main Menu">
-              <span>MAIN MENU</span>
+            <div class="results-sub-actions">
+              <button class="level-select-return-btn" id="resultsLevelsBtn" aria-label="Select Level">
+                <span>LEVELS</span>
+              </button>
+              <button class="menu-return-btn" id="menuReturnBtn" aria-label="Return to Main Menu">
+                <span>MAIN MENU</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Level Selection Screen (Dedicated Arcade Level Progression Hub) -->
+      <div class="ui-screen hidden level-select-screen" id="levelSelectScreen">
+        <div class="level-select-layout">
+          <!-- Atmospheric ambient glow aura -->
+          <div class="level-ambient-glow" aria-hidden="true"></div>
+
+          <!-- Top Navigation Header: Back Button + Title + Progress Summary -->
+          <div class="level-header-zone">
+            <button class="level-back-btn" id="levelSelectBackBtn" aria-label="Back to Main Menu" title="Back to Menu">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span>BACK</span>
             </button>
+            <div class="level-header-title-wrap">
+              <h2 class="level-screen-title">SELECT LEVEL</h2>
+              <span class="level-screen-subtitle" id="levelSelectProgressSub">1 UNLOCKED</span>
+            </div>
+            <div class="level-header-spacer" aria-hidden="true"></div>
+          </div>
+
+          <!-- Prominent CONTINUE Button: Resumes Last-Played Level -->
+          <div class="level-continue-zone">
+            <button class="level-continue-btn" id="continueLevelBtn" aria-label="Continue Last-Played Level">
+              <div class="continue-content">
+                <div class="continue-text-group">
+                  <span class="continue-kicker">RESUME ASCENT</span>
+                  <span class="continue-level-title" id="continueLevelTitle">CONTINUE LEVEL 1</span>
+                </div>
+                <div class="continue-action-badge">
+                  <span class="continue-play-text">PLAY</span>
+                  <svg class="continue-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </div>
+              </div>
+              <div class="continue-btn-aura" aria-hidden="true"></div>
+              <div class="continue-btn-sheen" aria-hidden="true"></div>
+            </button>
+          </div>
+
+          <!-- World Navigation Bar: Switch worlds & view level range -->
+          <div class="world-nav-zone" role="navigation" aria-label="World Navigation">
+            <button class="world-nav-btn world-prev-btn" id="prevWorldBtn" aria-label="Previous World" title="Previous World">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+              <span>PREV</span>
+            </button>
+            <div class="world-info-center">
+              <span class="world-title-text" id="worldTitleText">WORLD 1</span>
+              <span class="world-range-text" id="worldRangeText">LEVELS 1–12</span>
+            </div>
+            <button class="world-nav-btn world-next-btn" id="nextWorldBtn" aria-label="Next World" title="Next World">
+              <span>NEXT</span>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Scrollable Grid of Level Cards -->
+          <div class="level-grid-scroll" id="levelGridScroll">
+            <div class="level-grid" id="levelCardsGrid" role="list" aria-label="Level Cards Grid">
+              <!-- Dynamically populated level cards (unlocked & locked) -->
+            </div>
           </div>
         </div>
       </div>

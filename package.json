@@ -1,0 +1,21 @@
+{
+  "name": "bounce",
+  "version": "1.0.0",
+  "description": "BOUNCE — Endless Climb Arcade",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/copy-assets.js",
+    "demo": "node scripts/demonstrate_world_transition.js",
+    "demo:portal": "node scripts/demonstrate_world_transition.js",
+    "test": "node tests/results_screen.test.js && node tests/mobile_controls.test.js && node tests/level_progression.test.js && node tests/theme_system.test.js",
+    "cap:sync": "npm run build && npx cap sync android",
+    "cap:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}

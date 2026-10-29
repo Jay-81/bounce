@@ -1,0 +1,8 @@
+{
+  "appId": "com.jay81.bounce",
+  "appName": "BOUNCE",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  }
+}
