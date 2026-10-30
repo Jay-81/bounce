@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 const { spawn } = require('child_process');
 
-const rootDir = 'C:\\Users\\jayan\\bounce';
+const rootDir = path.resolve(__dirname, '..');
 
 function findBrowser() {
   const candidates = [

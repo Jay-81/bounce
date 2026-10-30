@@ -19,58 +19,76 @@
     <div class="game-container" id="gameContainer">
       <!-- HUD (In-Game Top Bar) -->
       <div class="game-hud" id="gameHud">
-        <!-- Level & Progress Group -->
-        <div class="hud-level-group">
-          <div class="hud-level-info">
-            <span class="hud-level-text" id="hudLevelText">LVL 1</span>
+        <!-- ROW 1: Gameplay Information (LVL -> LIVES -> ALT -> BEST) -->
+        <div class="hud-row hud-row-1">
+          <!-- 1. LVL: Current level indicator -->
+          <div class="hud-level-group">
+            <div class="hud-level-info">
+              <span class="hud-level-text" id="hudLevelText">LVL 1</span>
+            </div>
+            <div class="level-progress-track" title="Level Progress">
+              <div class="level-progress-bar" id="hudLevelProgress"></div>
+            </div>
           </div>
-          <div class="level-progress-track" title="Level Progress">
-            <div class="level-progress-bar" id="hudLevelProgress"></div>
+
+          <!-- 2. LIVES: Three-life indicator (Visually Centered) -->
+          <div class="hud-lives-group" id="hudLivesGroup" title="Remaining Lives" aria-label="3 Lives Remaining">
+            <span class="life-pip active" id="lifePip1" aria-label="Life 1">♥</span>
+            <span class="life-pip active" id="lifePip2" aria-label="Life 2">♥</span>
+            <span class="life-pip active" id="lifePip3" aria-label="Life 3">♥</span>
+          </div>
+
+          <!-- 3 & 4. ALT & BEST: Current and best altitude -->
+          <div class="hud-scores-group">
+            <div class="hud-item">
+              <span class="hud-label">ALT</span>
+              <span class="hud-value" id="hudScore">0</span>
+            </div>
+            <div class="hud-item">
+              <span class="hud-label">BEST</span>
+              <span class="hud-value" id="hudBest">0</span>
+            </div>
           </div>
         </div>
 
-        <!-- Scores -->
-        <div class="hud-scores-group">
-          <div class="hud-item">
-            <span class="hud-label">ALT</span>
-            <span class="hud-value" id="hudScore">0</span>
+        <!-- ROW 2: Collectibles & Controls (BLUES -> STARS -> KEYS -> SOUND -> PAUSE) -->
+        <div class="hud-row hud-row-2">
+          <!-- 1, 2, 3. BLUES -> STARS -> KEYS -->
+          <div class="hud-collectibles-group">
+            <span class="visually-hidden" id="hudRunOrbs">0</span>
+            <div class="hud-collectible-item hud-blues-item" title="Blues Currency">
+              <span class="hud-blues-gem">◆</span>
+              <span class="hud-collectible-val cyan-accent" id="hudBlues">0</span>
+            </div>
+            <div class="hud-collectible-item hud-stars-item" title="Stars Collected">
+              <span class="hud-star-glyph">★</span>
+              <span class="hud-collectible-val gold-accent" id="hudRunStars">0</span>
+            </div>
+            <div class="hud-collectible-item hud-keys-item" title="Available Keys">
+              <span class="hud-key-glyph">🗝️</span>
+              <span class="hud-collectible-val key-accent" id="hudKeys">0</span>
+            </div>
           </div>
-          <div class="hud-item">
-            <span class="hud-label">BEST</span>
-            <span class="hud-value" id="hudBest">0</span>
-          </div>
-        </div>
 
-        <!-- Collectibles in HUD (Energy Orbs & Special Stars) -->
-        <div class="hud-collectibles-group">
-          <div class="hud-collectible-item" title="Energy Orbs Collected">
-            <span class="hud-orb-dot"></span>
-            <span class="hud-collectible-val" id="hudRunOrbs">0</span>
+          <!-- 4 & 5. SOUND -> PAUSE (Far Right) -->
+          <div class="hud-actions-group">
+            <button class="icon-btn" id="soundBtn" title="Toggle Sound (M)" aria-label="Toggle Sound">
+              <!-- Audio ON icon -->
+              <svg class="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
+              </svg>
+              <!-- Audio OFF icon -->
+              <svg class="sound-off-icon hidden" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27l4.73 4.73H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
+              </svg>
+            </button>
+            <button class="icon-btn" id="pauseBtn" title="Pause Game (Esc)" aria-label="Pause Game">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
+                <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
+              </svg>
+            </button>
           </div>
-          <div class="hud-collectible-item" title="Special Stars Collected">
-            <span class="hud-star-glyph">★</span>
-            <span class="hud-collectible-val gold-accent" id="hudRunStars">0</span>
-          </div>
-        </div>
-
-        <!-- Action Controls (Sound & Pause) -->
-        <div class="hud-actions-group">
-          <button class="icon-btn" id="soundBtn" title="Toggle Sound (M)" aria-label="Toggle Sound">
-            <!-- Audio ON icon -->
-            <svg class="sound-on-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>
-            </svg>
-            <!-- Audio OFF icon -->
-            <svg class="sound-off-icon hidden" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27l4.73 4.73H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"></path>
-            </svg>
-          </button>
-          <button class="icon-btn" id="pauseBtn" title="Pause Game (Esc)" aria-label="Pause Game">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
-              <rect x="6" y="4" width="4" height="16" rx="1.5"></rect>
-              <rect x="14" y="4" width="4" height="16" rx="1.5"></rect>
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -78,6 +96,15 @@
       <div class="level-banner hidden" id="levelBanner">
         <div class="level-banner-title" id="levelBannerTitle">LEVEL 2 REACHED!</div>
         <div class="level-banner-sub">NEW MILESTONE UNLOCKED</div>
+      </div>
+
+      <!-- 5-Second Respawn Preparation Countdown Overlay -->
+      <div class="respawn-countdown-overlay hidden" id="respawnCountdownOverlay" aria-live="assertive">
+        <div class="countdown-card">
+          <div class="countdown-title" id="countdownTitle">GET READY</div>
+          <div class="countdown-number" id="countdownNumber">5</div>
+          <div class="countdown-subtext" id="countdownSubtext">RESPAWNING AT SAFE PLATFORM</div>
+        </div>
       </div>
 
       <!-- Canvas rendering surface -->
@@ -110,6 +137,18 @@
           <!-- Subtle atmospheric lighting aura -->
           <div class="home-ambient-glow" aria-hidden="true"></div>
 
+          <!-- Permanent Currency Balance Bar -->
+          <div class="home-currency-bar">
+            <div class="currency-pill blues-pill" title="Blues Currency Balance">
+              <span class="currency-icon">💎</span>
+              <span class="currency-val" id="menuBluesCount">0</span>
+            </div>
+            <div class="currency-pill keys-pill" title="Key Inventory">
+              <span class="currency-icon">🗝️</span>
+              <span class="currency-val" id="menuKeyCount">0</span>
+            </div>
+          </div>
+
           <!-- Upper Portion: Native BOUNCE Emblem & Lettering -->
           <div class="brand-logo-container">
             <img class="brand-logo-img" src="assets/bounce-logo-transparent.png" alt="BOUNCE" width="320" height="320" decoding="async">
@@ -139,6 +178,12 @@
                 <span>SELECT LEVEL</span>
               </span>
             </button>
+            <button class="levels-menu-btn vault-menu-btn" id="menuShopActionBtn" aria-label="Open Key Vault">
+              <span class="levels-btn-content">
+                <span class="vault-btn-icon">🗝️</span>
+                <span>KEY VAULT</span>
+              </span>
+            </button>
           </div>
         </div>
       </div>
@@ -159,6 +204,9 @@
             </button>
             <button class="neon-btn secondary-neon-btn" id="pauseLevelsBtn">
               <span>LEVELS</span>
+            </button>
+            <button class="neon-btn secondary-neon-btn vault-neon-btn" id="pauseShopBtn">
+              <span>🗝️ KEY VAULT</span>
             </button>
           </div>
         </div>
@@ -200,7 +248,7 @@
               </div>
             </div>
 
-            <!-- Sleek Horizontal Sub-Metrics: Level, Orbs, Stars -->
+            <!-- Sleek Horizontal Sub-Metrics: Level, Orbs, Stars, Blues Earned -->
             <div class="sub-metrics-row">
               <div class="sub-metric-item">
                 <span class="sub-metric-label">LEVEL</span>
@@ -216,6 +264,11 @@
                 <span class="sub-metric-label">STARS</span>
                 <span class="sub-metric-val star-accent" id="finalRunStars">0</span>
               </div>
+              <div class="sub-metric-divider" aria-hidden="true"></div>
+              <div class="sub-metric-item">
+                <span class="sub-metric-label">BLUES</span>
+                <span class="sub-metric-val blues-earned-val" id="finalRunBlues">+0</span>
+              </div>
             </div>
 
             <!-- Subtle Best Altitude Footer Tag -->
@@ -229,10 +282,12 @@
               <span id="finalHighestLevel">1</span>
               <span id="finalTotalOrbs">0</span>
               <span id="finalTotalStars">0</span>
+              <span id="finalTotalBlues">0</span>
+              <span id="finalTotalKeys">0</span>
             </div>
           </div>
 
-          <!-- Actions Zone: CLIMB AGAIN (Dominant), SELECT LEVEL & MAIN MENU (Secondary) -->
+          <!-- Actions Zone: CLIMB AGAIN (Dominant), SELECT LEVEL, VAULT & MAIN MENU (Secondary) -->
           <div class="results-actions-zone">
             <button class="climb-again-btn" id="restartBtn" aria-label="Climb Again">
               <span class="btn-content">
@@ -248,10 +303,164 @@
               <button class="level-select-return-btn" id="resultsLevelsBtn" aria-label="Select Level">
                 <span>LEVELS</span>
               </button>
+              <button class="results-vault-btn" id="resultsShopBtn" aria-label="Key Vault">
+                <span>🗝️ VAULT</span>
+              </button>
               <button class="menu-return-btn" id="menuReturnBtn" aria-label="Return to Main Menu">
                 <span>MAIN MENU</span>
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. Continue Screen (Dedicated Modal Shown on 3 Lives Lost) -->
+      <div class="ui-screen hidden continue-screen" id="continueScreen" role="dialog" aria-modal="true" aria-labelledby="continueTitle">
+        <div class="continue-modal-layout">
+          <div class="continue-ambient-glow" aria-hidden="true"></div>
+
+          <div class="continue-header-zone">
+            <div class="continue-icon-badge">
+              <span class="continue-key-glyph">🗝️</span>
+            </div>
+            <h2 class="continue-modal-title" id="continueTitle">CONTINUE?</h2>
+            <p class="continue-modal-sub" id="continueSubtext">You ran out of lives!</p>
+          </div>
+
+          <!-- Status Info: Altitude reached & Current Keys -->
+          <div class="continue-status-card">
+            <div class="continue-metric-row">
+              <span class="continue-metric-label">ALTITUDE</span>
+              <span class="continue-metric-value" id="continueAltitude">0</span>
+            </div>
+            <div class="continue-divider" aria-hidden="true"></div>
+            <div class="continue-keys-row">
+              <div class="continue-keys-left">
+                <span class="key-glyph">🗝️</span>
+                <span class="continue-keys-label">KEYS:</span>
+              </div>
+              <span class="continue-keys-count" id="continueKeyCount">0</span>
+            </div>
+            <div class="continue-blues-row">
+              <div class="continue-blues-left">
+                <span class="blues-glyph">💎</span>
+                <span class="continue-blues-label">BLUES:</span>
+              </div>
+              <span class="continue-blues-count" id="continueBluesCount">0</span>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="continue-actions-zone">
+            <!-- Continue Button (Use 1 Key) -->
+            <button class="continue-btn-primary" id="continueWithKeyBtn" aria-label="Use 1 Key to Continue">
+              <span class="continue-btn-content">
+                <span class="key-btn-icon">🗝️</span>
+                <span class="continue-btn-text">USE 1 KEY</span>
+              </span>
+              <div class="continue-btn-aura" aria-hidden="true"></div>
+            </button>
+
+            <!-- Get Keys Button (Opens Blues Shop) -->
+            <button class="continue-btn-shop" id="continueOpenShopBtn" aria-label="Get Keys in Vault">
+              <span class="shop-btn-content">
+                <span class="shop-btn-icon">🛒</span>
+                <span>GET KEYS</span>
+              </span>
+            </button>
+
+            <!-- Skip Button (End Run, Go to Results) -->
+            <button class="continue-btn-skip" id="continueSkipBtn" aria-label="Skip and End Run">
+              <span>SKIP & END RUN</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Key Shop / Neon Vault Modal -->
+      <div class="ui-screen hidden key-shop-screen" id="keyShopScreen" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
+        <div class="shop-modal-layout">
+          <div class="shop-ambient-glow" aria-hidden="true"></div>
+
+          <!-- Header -->
+          <div class="shop-header-zone">
+            <div class="shop-title-wrap">
+              <h2 class="shop-modal-title" id="shopTitle">KEY VAULT</h2>
+              <p class="shop-modal-sub">Buy Keys with Blues to Continue Runs</p>
+            </div>
+            <!-- Current Balances Bar -->
+            <div class="shop-balance-bar">
+              <div class="balance-pill blues-pill" title="Current Blues Balance">
+                <span class="balance-glyph">💎</span>
+                <span class="balance-label">BLUES:</span>
+                <span class="balance-num" id="shopBluesBalance">0</span>
+              </div>
+              <div class="balance-pill keys-pill" title="Current Key Inventory">
+                <span class="balance-glyph">🗝️</span>
+                <span class="balance-label">KEYS:</span>
+                <span class="balance-num" id="shopKeysBalance">0</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Key Bundle Cards -->
+          <div class="shop-bundles-grid" id="shopBundlesGrid">
+            <!-- 1 Key Card -->
+            <div class="bundle-card" id="bundleCard1">
+              <div class="bundle-icon-wrap">
+                <span class="bundle-glyph">🗝️</span>
+              </div>
+              <div class="bundle-info">
+                <span class="bundle-qty">1 KEY</span>
+                <span class="bundle-desc">1 Run Continue</span>
+              </div>
+              <button class="bundle-buy-btn" id="buyBundleBtn1" data-keys="1" data-price="100" aria-label="Buy 1 Key for 100 Blues">
+                <span class="buy-btn-price">100</span>
+                <span class="buy-btn-currency">BLUES</span>
+              </button>
+            </div>
+
+            <!-- 3 Keys Card (Value Pack) -->
+            <div class="bundle-card featured" id="bundleCard3">
+              <div class="bundle-badge">POPULAR</div>
+              <div class="bundle-icon-wrap">
+                <span class="bundle-glyph">🗝️×3</span>
+              </div>
+              <div class="bundle-info">
+                <span class="bundle-qty">3 KEYS</span>
+                <span class="bundle-desc">Save 30 Blues</span>
+              </div>
+              <button class="bundle-buy-btn" id="buyBundleBtn3" data-keys="3" data-price="270" aria-label="Buy 3 Keys for 270 Blues">
+                <span class="buy-btn-price">270</span>
+                <span class="buy-btn-currency">BLUES</span>
+              </button>
+            </div>
+
+            <!-- 5 Keys Card (Best Value) -->
+            <div class="bundle-card best-value" id="bundleCard5">
+              <div class="bundle-badge gold">BEST VALUE</div>
+              <div class="bundle-icon-wrap">
+                <span class="bundle-glyph">🗝️×5</span>
+              </div>
+              <div class="bundle-info">
+                <span class="bundle-qty">5 KEYS</span>
+                <span class="bundle-desc">Save 75 Blues</span>
+              </div>
+              <button class="bundle-buy-btn" id="buyBundleBtn5" data-keys="5" data-price="425" aria-label="Buy 5 Keys for 425 Blues">
+                <span class="buy-btn-price">425</span>
+                <span class="buy-btn-currency">BLUES</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Feedback Message (e.g. "Purchased 1 Key!" or "Insufficient Blues") -->
+          <div class="shop-feedback-msg hidden" id="shopFeedbackMsg" role="status" aria-live="polite"></div>
+
+          <!-- Footer Actions -->
+          <div class="shop-footer-zone">
+            <button class="shop-close-btn" id="shopCloseBtn" aria-label="Close Vault">
+              <span>BACK</span>
+            </button>
           </div>
         </div>
       </div>

@@ -27,6 +27,22 @@
   const STORAGE_KEY_TOTAL_STARS = 'bounce_arcade_total_stars';
   const STORAGE_KEY_LEVEL_RATINGS = 'bounce_arcade_level_ratings';
   const STORAGE_KEY_LAST_PLAYED = 'bounce_arcade_last_played_level';
+  const STORAGE_KEY_BLUES = 'bounce_arcade_blues';
+  const STORAGE_KEY_KEYS = 'bounce_arcade_keys';
+
+  // Currency, Lives, and Continue Configuration (Configurable in one centralized place)
+  const CURRENCY_CONFIG = {
+    bluesPerOrb: 5,
+    bluesPerStar: 25,
+    initialLives: 3,
+    respawnCountdownSeconds: 5,
+    invulnerabilityDurationSeconds: 2.0,
+    keyBundles: [
+      { keys: 1, price: 100 },
+      { keys: 3, price: 270, savings: 30, featured: true },
+      { keys: 5, price: 425, savings: 75, bestValue: true },
+    ],
+  };
 
   // Three-Star Performance Rating Thresholds (Configurable in one place)
   const PERFORMANCE_RATING_CONFIG = {
@@ -449,6 +465,8 @@
     LEVEL_SELECT: 'LEVEL_SELECT',
     PLAYING: 'PLAYING',
     PAUSED: 'PAUSED',
+    CONTINUE: 'CONTINUE',
+    SHOP: 'SHOP',
     GAMEOVER: 'GAMEOVER',
   };
 
@@ -742,6 +760,124 @@
         }
       } catch (e) {}
     }
+
+    // 8. Life Lost: Low warning pulse
+    playLifeLost() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(180, now);
+        osc.frequency.exponentialRampToValueAtTime(70, now + 0.25);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      } catch (e) {}
+    }
+
+    // 9. Countdown Tick: Crisp metronome blip
+    playCountdownTick(num = 1) {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const freq = 440 + Math.max(0, 5 - num) * 80;
+        osc.frequency.setValueAtTime(freq, now);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      } catch (e) {}
+    }
+
+    // 10. Countdown Go: Bright launch chime
+    playCountdownGo() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.exponentialRampToValueAtTime(1320, now + 0.16);
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.17);
+      } catch (e) {}
+    }
+
+    // 11. Key Use (Continue): Power-up warp chime
+    playKeyUse() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const chord = [392.00, 523.25, 659.25, 783.99, 1046.50];
+        chord.forEach((freq, idx) => {
+          const now = this.ctx.currentTime + idx * 0.05;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.21);
+        });
+      } catch (e) {}
+    }
+
+    // 12. Vault Purchase: Satisfying coin/purchase chime
+    playPurchase() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        [987.77, 1318.51].forEach((freq, idx) => {
+          const t = now + idx * 0.07;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.22, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(t);
+          osc.stop(t + 0.16);
+        });
+      } catch (e) {}
+    }
+
+    // 13. Error/Denied: Subtle rejection buzz
+    playError() {
+      if (!this.enabled || !this.ctx) return;
+      try {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.setValueAtTime(110, now + 0.08);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.19);
+      } catch (e) {}
+    }
   }
 
   // --- Collectible Energy Orb Entity (World Space) ---
@@ -1001,6 +1137,16 @@
         ctx.arc(0, 0, this.radius * 1.45, 0, Math.PI * 2);
         ctx.strokeStyle = (theme && theme.primaryAlpha) ? theme.primaryAlpha(0.65) : 'rgba(0, 240, 255, 0.6)';
         ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      // Respawn invulnerability protection shield aura
+      if (this.invulnerable || (typeof window !== 'undefined' && window.bounceGame && window.bounceGame.invulnerableTimer > 0)) {
+        ctx.beginPath();
+        const pulse = 1.65 + 0.18 * Math.sin(Date.now() * 0.015);
+        ctx.arc(0, 0, this.radius * pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 2.4;
         ctx.stroke();
       }
 
@@ -1531,6 +1677,53 @@
       this.hudRunOrbs = document.getElementById('hudRunOrbs');
       this.hudRunStars = document.getElementById('hudRunStars');
 
+      // Lives & Currency HUD elements
+      this.hudLivesGroup = document.getElementById('hudLivesGroup');
+      this.lifePip1 = document.getElementById('lifePip1');
+      this.lifePip2 = document.getElementById('lifePip2');
+      this.lifePip3 = document.getElementById('lifePip3');
+      this.hudBlues = document.getElementById('hudBlues');
+      this.hudKeys = document.getElementById('hudKeys');
+
+      // 5-Second Respawn Countdown Overlay
+      this.respawnCountdownOverlay = document.getElementById('respawnCountdownOverlay');
+      this.countdownNumber = document.getElementById('countdownNumber');
+      this.countdownTitle = document.getElementById('countdownTitle');
+      this.countdownSubtext = document.getElementById('countdownSubtext');
+
+      // Permanent Menu Currency Bar & Vault triggers
+      this.menuBluesCount = document.getElementById('menuBluesCount');
+      this.menuKeyCount = document.getElementById('menuKeyCount');
+      this.menuShopBtn = document.getElementById('menuShopBtn');
+      this.menuShopActionBtn = document.getElementById('menuShopActionBtn');
+      this.pauseShopBtn = document.getElementById('pauseShopBtn');
+      this.resultsShopBtn = document.getElementById('resultsShopBtn');
+
+      // Results screen run & lifetime currency displays
+      this.finalRunBlues = document.getElementById('finalRunBlues');
+      this.finalTotalBlues = document.getElementById('finalTotalBlues');
+      this.finalTotalKeys = document.getElementById('finalTotalKeys');
+
+      // Continue Screen (Dedicated Modal on 3 Lives Lost)
+      this.continueScreen = document.getElementById('continueScreen');
+      this.continueAltitude = document.getElementById('continueAltitude');
+      this.continueKeyCount = document.getElementById('continueKeyCount');
+      this.continueBluesCount = document.getElementById('continueBluesCount');
+      this.continueWithKeyBtn = document.getElementById('continueWithKeyBtn');
+      this.continueOpenShopBtn = document.getElementById('continueOpenShopBtn');
+      this.continueSkipBtn = document.getElementById('continueSkipBtn');
+
+      // Key Shop / Neon Vault Modal
+      this.keyShopScreen = document.getElementById('keyShopScreen');
+      this.shopBluesBalance = document.getElementById('shopBluesBalance');
+      this.shopKeysBalance = document.getElementById('shopKeysBalance');
+      this.shopBundlesGrid = document.getElementById('shopBundlesGrid');
+      this.buyBundleBtn1 = document.getElementById('buyBundleBtn1');
+      this.buyBundleBtn3 = document.getElementById('buyBundleBtn3');
+      this.buyBundleBtn5 = document.getElementById('buyBundleBtn5');
+      this.shopFeedbackMsg = document.getElementById('shopFeedbackMsg');
+      this.shopCloseBtn = document.getElementById('shopCloseBtn');
+
       // Menu stats
       this.menuBestScore = document.getElementById('menuBestScore');
       this.menuHighestLevel = document.getElementById('menuHighestLevel');
@@ -1644,6 +1837,20 @@
       this.levelBestRatings = this.loadLevelRatings();
       this.runResultsProcessed = false;
 
+      // Lives, Currency & Continue State
+      this.lives = CURRENCY_CONFIG.initialLives;
+      this.blues = this.loadBlues();
+      this.runBlues = 0;
+      this.keysInventory = this.loadKeys();
+      this.isRespawning = false;
+      this.countdownTimer = 0;
+      this.lastCountdownInteger = 0;
+      this.invulnerableTimer = 0;
+      this.lastSafePlatform = null;
+      this.respawnTargetX = 240;
+      this.respawnTargetY = 580;
+      this.shopPreviousState = STATE.MENU;
+
       // Loop Timing
       this.lastTime = 0;
       this.animationFrameId = null;
@@ -1656,6 +1863,8 @@
       this.setupEventListeners();
       this.setupMobileControls();
       this.updateSoundButtonUI();
+      this.updateLivesDisplay();
+      this.updateCurrencyDisplays();
       this.updateScoreDisplays();
       this.setGameState(STATE.MENU);
 
@@ -1845,6 +2054,307 @@
       } catch (e) {}
     }
 
+    // --- Currency, Lives & Inventory Management ---
+    loadBlues() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_BLUES);
+        return saved ? Math.max(0, parseInt(saved, 10) || 0) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    saveBlues(val) {
+      try {
+        const n = Math.max(0, Math.floor(Number(val) || 0));
+        localStorage.setItem(STORAGE_KEY_BLUES, n.toString());
+        this.blues = n;
+      } catch (e) {}
+    }
+
+    addBlues(amount, trackRun = true) {
+      const qty = Math.max(0, Math.floor(Number(amount) || 0));
+      if (qty <= 0) return;
+      this.blues = (this.blues || 0) + qty;
+      if (trackRun) {
+        this.runBlues = (this.runBlues || 0) + qty;
+      }
+      this.saveBlues(this.blues);
+      this.updateCurrencyDisplays();
+    }
+
+    spendBlues(amount) {
+      const qty = Math.max(0, Math.floor(Number(amount) || 0));
+      if (this.blues < qty) return false;
+      this.blues -= qty;
+      this.saveBlues(this.blues);
+      this.updateCurrencyDisplays();
+      return true;
+    }
+
+    loadKeys() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY_KEYS);
+        return saved ? Math.max(0, parseInt(saved, 10) || 0) : 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    saveKeys(val) {
+      try {
+        const n = Math.max(0, Math.floor(Number(val) || 0));
+        localStorage.setItem(STORAGE_KEY_KEYS, n.toString());
+        this.keysInventory = n;
+      } catch (e) {}
+    }
+
+    addKeys(amount) {
+      const qty = Math.max(0, Math.floor(Number(amount) || 0));
+      if (qty <= 0) return;
+      this.keysInventory = (this.keysInventory || 0) + qty;
+      this.saveKeys(this.keysInventory);
+      this.updateCurrencyDisplays();
+    }
+
+    useKey() {
+      if (this.keysInventory <= 0) return false;
+      this.keysInventory--;
+      this.saveKeys(this.keysInventory);
+      this.updateCurrencyDisplays();
+      return true;
+    }
+
+    updateLivesDisplay() {
+      const pips = [this.lifePip1, this.lifePip2, this.lifePip3];
+      pips.forEach((pip, idx) => {
+        if (!pip) return;
+        if (idx < this.lives) {
+          pip.classList.remove('lost');
+          pip.classList.add('active');
+        } else {
+          pip.classList.remove('active');
+          pip.classList.add('lost');
+        }
+      });
+    }
+
+    updateCurrencyDisplays() {
+      if (this.hudBlues) this.hudBlues.textContent = String(this.blues);
+      if (this.hudKeys) this.hudKeys.textContent = String(this.keysInventory);
+      if (this.menuBluesCount) this.menuBluesCount.textContent = String(this.blues);
+      if (this.menuKeyCount) this.menuKeyCount.textContent = String(this.keysInventory);
+      if (this.shopBluesBalance) this.shopBluesBalance.textContent = String(this.blues);
+      if (this.shopKeysBalance) this.shopKeysBalance.textContent = String(this.keysInventory);
+      if (this.continueKeyCount) this.continueKeyCount.textContent = String(this.keysInventory);
+      if (this.continueBluesCount) this.continueBluesCount.textContent = String(this.blues);
+      if (this.finalRunBlues) this.finalRunBlues.textContent = `+${this.runBlues || 0}`;
+      if (this.finalTotalBlues) this.finalTotalBlues.textContent = String(this.blues);
+      if (this.finalTotalKeys) this.finalTotalKeys.textContent = String(this.keysInventory);
+
+      // Update Continue screen button state based on available keys
+      if (this.continueWithKeyBtn) {
+        const canContinue = (this.keysInventory > 0);
+        this.continueWithKeyBtn.disabled = !canContinue;
+        this.continueWithKeyBtn.classList.toggle('disabled', !canContinue);
+      }
+
+      // Update bundle buttons affordability
+      const bundles = CURRENCY_CONFIG.keyBundles || [];
+      bundles.forEach((b) => {
+        const btn = document.getElementById(`buyBundleBtn${b.keys}`);
+        if (btn) {
+          const affordable = (this.blues >= b.price);
+          btn.disabled = !affordable;
+          btn.classList.toggle('insufficient', !affordable);
+        }
+      });
+    }
+
+    // --- Life Loss, Respawn & Continue Management ---
+    handlePlayerFall() {
+      if (this.isRespawning || this.invulnerableTimer > 0) return;
+
+      if (this.lives > 1) {
+        this.lives--;
+        this.updateLivesDisplay();
+        this.sound.playLifeLost();
+        this.startRespawnCountdown();
+      } else {
+        // Last life lost -> Open Continue modal
+        this.lives = 0;
+        this.updateLivesDisplay();
+        this.sound.playLifeLost();
+        this.openContinueScreen();
+      }
+    }
+
+    startRespawnCountdown() {
+      this.isRespawning = true;
+      this.countdownTimer = CURRENCY_CONFIG.respawnCountdownSeconds;
+      this.lastCountdownInteger = Math.ceil(this.countdownTimer);
+
+      // Find safe platform position
+      let targetPlat = this.lastSafePlatform;
+      if (!targetPlat || !this.platforms.includes(targetPlat)) {
+        targetPlat = this.platforms[0] || null;
+      }
+
+      if (targetPlat) {
+        let safeLeft = targetPlat.x;
+        let safeRight = targetPlat.x + targetPlat.width;
+        if (targetPlat.spike) {
+          if (targetPlat.spike.side === 'left') {
+            safeLeft = targetPlat.x + targetPlat.spike.width + 12;
+          } else {
+            safeRight = targetPlat.x + targetPlat.width - targetPlat.spike.width - 12;
+          }
+        }
+        this.respawnTargetX = (safeLeft + safeRight) * 0.5;
+        this.respawnTargetY = targetPlat.y - this.ball.radius - 2;
+      } else {
+        this.respawnTargetX = CANVAS_WIDTH * 0.5;
+        this.respawnTargetY = this.cameraY + (this.canvasHeight || CANVAS_HEIGHT) * 0.6;
+      }
+
+      // Pin ball to safe platform
+      this.ball.x = this.respawnTargetX;
+      this.ball.y = this.respawnTargetY;
+      this.ball.vx = 0;
+      this.ball.vy = 0;
+      this.ball.hasAirJump = true;
+
+      // Adjust camera so safe platform and ball are comfortably visible
+      const currentH = this.canvasHeight || CANVAS_HEIGHT;
+      const targetOffset = Math.round(currentH * 0.55);
+      this.cameraY = this.ball.y - targetOffset;
+
+      // Update overlay UI
+      if (this.respawnCountdownOverlay) {
+        if (this.countdownTitle) this.countdownTitle.textContent = 'GET READY';
+        if (this.countdownNumber) this.countdownNumber.textContent = this.lastCountdownInteger.toString();
+        if (this.countdownSubtext) this.countdownSubtext.textContent = `LIVES REMAINING: ${this.lives}`;
+        this.respawnCountdownOverlay.classList.remove('hidden');
+      }
+
+      this.sound.playCountdownTick(this.lastCountdownInteger);
+    }
+
+    finishRespawn() {
+      this.isRespawning = false;
+      this.invulnerableTimer = CURRENCY_CONFIG.invulnerabilityDurationSeconds;
+      this.ball.invulnerable = true;
+
+      if (this.countdownNumber) {
+        this.countdownNumber.textContent = 'GO!';
+      }
+      this.sound.playCountdownGo();
+
+      // Launch upward bounce
+      this.ball.triggerBounce();
+      this.sound.playBounce();
+
+      setTimeout(() => {
+        if (this.respawnCountdownOverlay) {
+          this.respawnCountdownOverlay.classList.add('hidden');
+        }
+      }, 350);
+    }
+
+    openContinueScreen() {
+      this.resetHeldKeys();
+      this.setGameState(STATE.CONTINUE);
+      if (this.continueAltitude) this.continueAltitude.textContent = String(this.score);
+      if (this.continueKeyCount) this.continueKeyCount.textContent = String(this.keysInventory);
+      if (this.continueBluesCount) this.continueBluesCount.textContent = String(this.blues);
+
+      if (this.continueWithKeyBtn) {
+        const canContinue = (this.keysInventory > 0);
+        this.continueWithKeyBtn.disabled = !canContinue;
+        this.continueWithKeyBtn.classList.toggle('disabled', !canContinue);
+      }
+    }
+
+    continueWithKey() {
+      if (this.keysInventory <= 0) return false;
+      const used = this.useKey();
+      if (!used) return false;
+
+      this.sound.playKeyUse();
+      this.lives = CURRENCY_CONFIG.initialLives;
+      this.updateLivesDisplay();
+      this.setGameState(STATE.PLAYING);
+      this.startRespawnCountdown();
+      return true;
+    }
+
+    skipContinue() {
+      this.triggerGameOver('Out of lives');
+    }
+
+    // --- Key Shop / Vault Management ---
+    openShop(fromState = null) {
+      this.shopPreviousState = fromState || this.currentState;
+      this.setGameState(STATE.SHOP);
+      this.renderShopUI();
+    }
+
+    renderShopUI() {
+      if (this.shopBluesBalance) this.shopBluesBalance.textContent = String(this.blues);
+      if (this.shopKeysBalance) this.shopKeysBalance.textContent = String(this.keysInventory);
+      if (this.shopFeedbackMsg) {
+        this.shopFeedbackMsg.textContent = '';
+        this.shopFeedbackMsg.classList.add('hidden');
+        this.shopFeedbackMsg.classList.remove('success', 'error');
+      }
+
+      const bundles = CURRENCY_CONFIG.keyBundles || [];
+      bundles.forEach((b) => {
+        const btn = document.getElementById(`buyBundleBtn${b.keys}`);
+        if (btn) {
+          const canBuy = (this.blues >= b.price);
+          btn.disabled = !canBuy;
+          btn.classList.toggle('insufficient', !canBuy);
+        }
+      });
+    }
+
+    buyKeyBundle(keysToAdd, price) {
+      if (this.blues < price) {
+        if (this.shopFeedbackMsg) {
+          this.shopFeedbackMsg.textContent = 'INSUFFICIENT BLUES!';
+          this.shopFeedbackMsg.classList.remove('hidden', 'success');
+          this.shopFeedbackMsg.classList.add('error');
+        }
+        this.sound.playError();
+        return false;
+      }
+
+      const spent = this.spendBlues(price);
+      if (!spent) return false;
+
+      this.addKeys(keysToAdd);
+      this.sound.playPurchase();
+
+      if (this.shopFeedbackMsg) {
+        this.shopFeedbackMsg.textContent = `PURCHASED +${keysToAdd} KEY${keysToAdd > 1 ? 'S' : ''}!`;
+        this.shopFeedbackMsg.classList.remove('hidden', 'error');
+        this.shopFeedbackMsg.classList.add('success');
+      }
+
+      this.renderShopUI();
+      return true;
+    }
+
+    closeShop() {
+      if (this.shopPreviousState === STATE.CONTINUE) {
+        this.openContinueScreen();
+      } else {
+        this.setGameState(this.shopPreviousState || STATE.MENU);
+        this.updateScoreDisplays();
+      }
+    }
+
     // Three-Star Performance Rating Calculator (Configured via PERFORMANCE_RATING_CONFIG)
     calculatePerformanceRating(score, runOrbs = 0, runStars = 0) {
       try {
@@ -1955,12 +2465,22 @@
         this.levelSelectScreen.classList.toggle('active', newState === STATE.LEVEL_SELECT);
       }
 
+      if (this.continueScreen) {
+        this.continueScreen.classList.toggle('hidden', newState !== STATE.CONTINUE);
+        this.continueScreen.classList.toggle('active', newState === STATE.CONTINUE);
+      }
+
+      if (this.keyShopScreen) {
+        this.keyShopScreen.classList.toggle('hidden', newState !== STATE.SHOP);
+        this.keyShopScreen.classList.toggle('active', newState === STATE.SHOP);
+      }
+
       // HUD Visibility
       this.gameHud.style.display = (newState === STATE.PLAYING || newState === STATE.PAUSED) ? 'flex' : 'none';
 
-      // Floating Mobile Controls Visibility (Active during gameplay only)
+      // Floating Mobile Controls Visibility (Active during gameplay only, inactive when respawning or in modal)
       if (this.touchControls) {
-        const isPlaying = (newState === STATE.PLAYING);
+        const isPlaying = (newState === STATE.PLAYING && !this.isRespawning);
         this.touchControls.classList.toggle('controls-inactive', !isPlaying);
       }
 
@@ -2291,7 +2811,18 @@
       this.ball.reset(240, 580);
       this.ball.vy = BOUNCE_VELOCITY * 0.7; // Initial small drop from safe base
       this.ball.hasAirJump = false;
+      this.ball.invulnerable = false;
       this.particles.reset();
+
+      // Reset Lives, Currency & Respawn States for New Run
+      this.lives = CURRENCY_CONFIG.initialLives;
+      this.runBlues = 0;
+      this.isRespawning = false;
+      this.countdownTimer = 0;
+      this.invulnerableTimer = 0;
+      if (this.respawnCountdownOverlay) {
+        this.respawnCountdownOverlay.classList.add('hidden');
+      }
 
       // Reset Initial Platforms:
       // Generous stationary base at y=620 ensures safe spawn landing on all levels
@@ -2301,6 +2832,7 @@
         new Platform(230, 260, 140, 16, 0, 0, CANVAS_WIDTH, null),
       ];
       this.highestGeneratedY = 260;
+      this.lastSafePlatform = this.platforms[0];
 
       // Spawn starter energy orbs on intro tiers (safe, reachable)
       this.collectibles.push(new CollectibleOrb(150, 395));
@@ -2400,6 +2932,9 @@
       if (this.finalRunStars) this.finalRunStars.textContent = this.runStars;
       if (this.finalTotalOrbs) this.finalTotalOrbs.textContent = this.totalOrbs;
       if (this.finalTotalStars) this.finalTotalStars.textContent = this.totalStars;
+      if (this.finalRunBlues) this.finalRunBlues.textContent = `+${this.runBlues || 0}`;
+      if (this.finalTotalBlues) this.finalTotalBlues.textContent = this.blues;
+      if (this.finalTotalKeys) this.finalTotalKeys.textContent = this.keysInventory;
       if (this.gameOverSubtext) this.gameOverSubtext.textContent = reason;
 
       // Play results screen audio fanfare reflecting rating
@@ -2418,6 +2953,8 @@
       if (this.menuTotalOrbs) this.menuTotalOrbs.textContent = this.totalOrbs;
       if (this.menuTotalStars) this.menuTotalStars.textContent = this.totalStars;
       if (this.hudLevelText) this.hudLevelText.textContent = `LVL ${this.level}`;
+      this.updateLivesDisplay();
+      this.updateCurrencyDisplays();
       this.applyThemeToHUD();
     }
 
@@ -2622,9 +3159,9 @@
         }
       }
 
-      // Memory cleanup: Recycle/remove platforms & collectibles far below camera view
+      // Memory cleanup: Recycle/remove platforms & collectibles far below camera view (preserving last safe platform)
       const removeThresholdY = this.cameraY + (this.canvasHeight || CANVAS_HEIGHT) + 240;
-      this.platforms = this.platforms.filter(p => p.y <= removeThresholdY);
+      this.platforms = this.platforms.filter(p => p.y <= removeThresholdY || p === this.lastSafePlatform);
       this.collectibles = this.collectibles.filter(o => o.y <= removeThresholdY && !o.collected);
       this.specialStars = this.specialStars.filter(s => s.y <= removeThresholdY && !s.collected);
     }
@@ -2657,13 +3194,23 @@
           // Edge-triggered: exactly one action per key press
           this.handleAirJump();
         } else if (e.code === 'Escape' || e.code === 'KeyP') {
-          if (this.currentState === STATE.LEVEL_SELECT) {
+          if (this.currentState === STATE.SHOP) {
+            this.closeShop();
+          } else if (this.currentState === STATE.CONTINUE) {
+            this.skipContinue();
+          } else if (this.currentState === STATE.LEVEL_SELECT) {
             this.setGameState(STATE.MENU);
           } else if (this.currentState === STATE.PLAYING || this.currentState === STATE.PAUSED) {
             this.togglePause();
           }
         } else if (e.code === 'Enter' || e.code === 'Space') {
-          if (this.currentState === STATE.MENU) {
+          if (this.currentState === STATE.CONTINUE) {
+            if (this.keysInventory > 0) {
+              this.continueWithKey();
+            } else {
+              this.skipContinue();
+            }
+          } else if (this.currentState === STATE.MENU) {
             this.startNewGame(this.lastPlayedLevel);
           } else if (this.currentState === STATE.LEVEL_SELECT) {
             this.startNewGame(this.lastPlayedLevel);
@@ -2756,6 +3303,45 @@
         bindButtonAction(this.nextWorldBtn, () => {
           this.goToNextWorld();
         });
+      }
+
+      // Continue Screen Action Buttons
+      if (this.continueWithKeyBtn) {
+        bindButtonAction(this.continueWithKeyBtn, () => this.continueWithKey());
+      }
+      if (this.continueOpenShopBtn) {
+        bindButtonAction(this.continueOpenShopBtn, () => this.openShop(STATE.CONTINUE));
+      }
+      if (this.continueSkipBtn) {
+        bindButtonAction(this.continueSkipBtn, () => this.skipContinue());
+      }
+
+      // Shop / Key Vault Action Buttons
+      if (this.menuShopBtn) {
+        bindButtonAction(this.menuShopBtn, () => this.openShop(STATE.MENU));
+      }
+      if (this.menuShopActionBtn) {
+        bindButtonAction(this.menuShopActionBtn, () => this.openShop(STATE.MENU));
+      }
+      if (this.pauseShopBtn) {
+        bindButtonAction(this.pauseShopBtn, () => this.openShop(STATE.PAUSED));
+      }
+      if (this.resultsShopBtn) {
+        bindButtonAction(this.resultsShopBtn, () => this.openShop(STATE.GAMEOVER));
+      }
+      if (this.shopCloseBtn) {
+        bindButtonAction(this.shopCloseBtn, () => this.closeShop());
+      }
+
+      // Key Bundle Purchase Buttons
+      if (this.buyBundleBtn1) {
+        bindButtonAction(this.buyBundleBtn1, () => this.buyKeyBundle(1, 100));
+      }
+      if (this.buyBundleBtn3) {
+        bindButtonAction(this.buyBundleBtn3, () => this.buyKeyBundle(3, 270));
+      }
+      if (this.buyBundleBtn5) {
+        bindButtonAction(this.buyBundleBtn5, () => this.buyKeyBundle(5, 425));
       }
 
       // Responsive Viewport Resize & Orientation Change
@@ -2994,9 +3580,10 @@
         const hitDistSq = (this.ball.radius * 0.85) * (this.ball.radius * 0.85);
 
         if (dx * dx + dy * dy < hitDistSq) {
+          if (this.invulnerableTimer > 0) continue;
           this.sound.playHazard();
           this.particles.spawnHazardSparks(this.ball.x, this.ball.y);
-          this.triggerGameOver('Shattered by a hazard spike!');
+          this.handlePlayerFall();
           return;
         }
       }
@@ -3012,6 +3599,7 @@
         if (dx * dx + dy * dy <= hitDist * hitDist) {
           orb.collected = true;
           this.runOrbs++;
+          this.addBlues(CURRENCY_CONFIG.bluesPerOrb, true);
           this.sound.playOrbCollect();
           this.particles.spawnOrbCollectSparks(orb.x, orbY);
           this.collectibles.splice(i, 1);
@@ -3029,6 +3617,7 @@
         if (dx * dx + dy * dy <= hitDist * hitDist) {
           star.collected = true;
           this.runStars++;
+          this.addBlues(CURRENCY_CONFIG.bluesPerStar, true);
           this.sound.playStarCollect();
           this.particles.spawnStarCollectBurst(star.x, starY);
           this.specialStars.splice(i, 1);
@@ -3083,6 +3672,9 @@
             // Maintain relative horizontal alignment with moving platform
             this.ball.x += (p.x - p.prevX);
 
+            // Record as last safe platform reached
+            this.lastSafePlatform = p;
+
             // Trigger automatic upward bounce and reset air jump!
             this.ball.triggerBounce();
             p.triggerImpact();
@@ -3114,8 +3706,42 @@
 
     // --- Physics & Update ---
     update(dt) {
+      // If respawn countdown is active, tick countdown and hold ball at safe platform
+      if (this.isRespawning) {
+        this.countdownTimer -= dt;
+
+        // Keep ball securely pinned at safe platform coordinates
+        this.ball.x = this.respawnTargetX;
+        this.ball.y = this.respawnTargetY;
+        this.ball.vx = 0;
+        this.ball.vy = 0;
+
+        const currentSec = Math.max(1, Math.ceil(this.countdownTimer));
+        if (currentSec !== this.lastCountdownInteger && this.countdownTimer > 0) {
+          this.lastCountdownInteger = currentSec;
+          if (this.countdownNumber) {
+            this.countdownNumber.textContent = currentSec.toString();
+            this.countdownNumber.classList.remove('pulse-tick');
+            void this.countdownNumber.offsetWidth;
+            this.countdownNumber.classList.add('pulse-tick');
+          }
+          this.sound.playCountdownTick(currentSec);
+        }
+
+        if (this.countdownTimer <= 0) {
+          this.finishRespawn();
+        }
+        return; // Skip normal gameplay updates while respawning
+      }
+
       if (this.currentState !== STATE.PLAYING) {
         return;
+      }
+
+      // Invulnerability protection timer decay
+      if (this.invulnerableTimer > 0) {
+        this.invulnerableTimer -= dt;
+        this.ball.invulnerable = (this.invulnerableTimer > 0);
       }
 
       // Substepping prevents tunneling even with frame delays
@@ -3200,9 +3826,11 @@
 
       this.updateScoreDisplays();
 
-      // Game Over detection: Ball falls below bottom edge of screen viewport
+      // Fall detection: Ball falls below bottom edge of screen viewport
       if (this.ball.y - this.cameraY - this.ball.radius > currentH) {
-        this.triggerGameOver('The orb fell into the void');
+        if (!this.isRespawning && this.invulnerableTimer <= 0) {
+          this.handlePlayerFall();
+        }
       }
     }
 
@@ -3396,6 +4024,7 @@
   if (typeof window !== 'undefined') {
     window.BounceGame = BounceGame;
     window.STATE = STATE;
+    window.CURRENCY_CONFIG = CURRENCY_CONFIG;
     window.getLevelMilestone = getLevelMilestone;
     window.bindButtonAction = bindButtonAction;
     window.MOVE_ACCEL_X = MOVE_ACCEL_X;
@@ -3412,6 +4041,7 @@
     module.exports = {
       BounceGame,
       STATE,
+      CURRENCY_CONFIG,
       getLevelMilestone,
       bindButtonAction,
       MOVE_ACCEL_X,

@@ -5,9 +5,7 @@
   "private": true,
   "scripts": {
     "build": "node scripts/copy-assets.js",
-    "demo": "node scripts/demonstrate_world_transition.js",
-    "demo:portal": "node scripts/demonstrate_world_transition.js",
-    "test": "node tests/results_screen.test.js && node tests/mobile_controls.test.js && node tests/level_progression.test.js && node tests/theme_system.test.js",
+    "test": "node tests/results_screen.test.js && node tests/mobile_controls.test.js && node tests/level_progression.test.js && node tests/theme_system.test.js && node tests/lives_currency_continue.test.js",
     "cap:sync": "npm run build && npx cap sync android",
     "cap:open": "npx cap open android"
   },

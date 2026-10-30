@@ -211,7 +211,7 @@ html, body {
 }
 
 /* ==========================================================================
-   In-Game Compact Progression HUD
+   In-Game Compact Progression HUD (Two-Row Responsive Layout)
    ========================================================================== */
 .game-hud {
   position: absolute;
@@ -219,18 +219,19 @@ html, body {
   left: 10px;
   right: 10px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   background: var(--bg-hud);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  padding: 7px 12px;
+  padding: 6px 12px 7px 12px;
   border-radius: var(--border-radius-sm);
   border: 1px solid rgba(0, 240, 255, 0.28);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   z-index: 10;
   pointer-events: none;
-  gap: clamp(4px, 1.5vw, 8px);
+  gap: 6px;
   box-sizing: border-box;
   max-width: 100%;
 }
@@ -242,14 +243,37 @@ html, body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Level Progression Group (Left Corner) */
+/* HUD Rows */
+.hud-row {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ROW 1: LVL (Left) -> LIVES (Centered) -> ALT & BEST (Right) */
+.hud-row-1 {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  width: 100%;
+}
+
+/* ROW 2: BLUES -> STARS -> KEYS (Left) -> SOUND -> PAUSE (Right) */
+.hud-row-2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+/* Level Progression Group (Row 1 Left Column) */
 .hud-level-group {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  min-width: 54px;
-  max-width: 82px;
-  flex: 0 1 auto;
+  min-width: 50px;
+  max-width: 86px;
+  justify-self: start;
 }
 
 .hud-level-info {
@@ -287,10 +311,12 @@ html, body {
   transition: width 0.15s ease-out, background 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Scores Group (Center) */
+/* Scores Group (Row 1 Right Column) */
 .hud-scores-group {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  justify-self: end;
   gap: 14px;
 }
 
@@ -322,15 +348,16 @@ html, body {
   text-shadow: var(--neon-gold-glow);
 }
 
-/* Collectibles in HUD */
+/* Collectibles in HUD (Row 2 Left: Blues -> Stars -> Keys) */
 .hud-collectibles-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   background: rgba(4, 8, 24, 0.6);
-  padding: 4px 9px;
+  padding: 3px 9px;
   border-radius: var(--border-radius-pill);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .hud-collectible-item {
@@ -361,6 +388,12 @@ html, body {
   line-height: 1;
 }
 
+.hud-key-glyph {
+  font-size: 0.85rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.7));
+}
+
 .hud-collectible-val {
   font-family: var(--font-display);
   font-size: 0.92rem;
@@ -375,7 +408,17 @@ html, body {
   text-shadow: 0 0 8px rgba(255, 215, 0, 0.65);
 }
 
-/* Action Controls (Right Corner: Sound & Pause) */
+.hud-collectible-val.cyan-accent {
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.7);
+}
+
+.hud-collectible-val.key-accent {
+  color: #ffd166;
+  text-shadow: 0 0 8px rgba(255, 209, 102, 0.65);
+}
+
+/* Action Controls (Row 2 Right: Sound & Pause) */
 .hud-actions-group {
   display: flex;
   align-items: center;
@@ -2334,8 +2377,8 @@ kbd {
     top: max(8px, env(safe-area-inset-top));
     left: max(8px, env(safe-area-inset-left));
     right: max(8px, env(safe-area-inset-right));
-    padding: 6px 10px;
-    gap: clamp(4px, 1.8vw, 8px);
+    padding: 5px 8px 6px 8px;
+    gap: 5px;
     box-sizing: border-box;
   }
 
@@ -2368,8 +2411,8 @@ kbd {
   }
 
   .hud-collectibles-group {
-    padding: 3px 6px;
-    gap: 5px;
+    padding: 3px 7px;
+    gap: 7px;
   }
 
   .hud-collectible-item {
@@ -2383,6 +2426,14 @@ kbd {
 
   .hud-star-glyph {
     font-size: 0.84rem;
+  }
+
+  .hud-key-glyph {
+    font-size: 0.82rem;
+  }
+
+  .hud-blues-gem {
+    font-size: 0.8rem;
   }
 
   .hud-collectible-val {
@@ -2416,13 +2467,13 @@ kbd {
       top: max(6px, env(safe-area-inset-top));
       left: max(6px, env(safe-area-inset-left));
       right: max(6px, env(safe-area-inset-right));
-      padding: 5px 6px;
+      padding: 4px 6px 5px 6px;
       gap: 4px;
     }
 
     .hud-level-group {
       min-width: 44px;
-      max-width: 60px;
+      max-width: 66px;
       gap: 2px;
     }
 
@@ -2436,7 +2487,7 @@ kbd {
     }
 
     .hud-scores-group {
-      gap: 5px;
+      gap: 6px;
     }
 
     .hud-label {
@@ -2449,8 +2500,8 @@ kbd {
     }
 
     .hud-collectibles-group {
-      padding: 2px 5px;
-      gap: 4px;
+      padding: 2px 6px;
+      gap: 6px;
     }
 
     .hud-collectible-item {
@@ -2464,6 +2515,14 @@ kbd {
 
     .hud-star-glyph {
       font-size: 0.76rem;
+    }
+
+    .hud-key-glyph {
+      font-size: 0.76rem;
+    }
+
+    .hud-blues-gem {
+      font-size: 0.74rem;
     }
 
     .hud-collectible-val {
@@ -2514,13 +2573,13 @@ kbd {
     .game-hud {
       left: max(4px, env(safe-area-inset-left));
       right: max(4px, env(safe-area-inset-right));
-      padding: 3px 4px;
-      gap: 2px;
+      padding: 3px 5px 4px 5px;
+      gap: 3px;
     }
 
     .hud-level-group {
       min-width: 38px;
-      max-width: 48px;
+      max-width: 52px;
     }
 
     .hud-level-text {
@@ -2529,7 +2588,7 @@ kbd {
     }
 
     .hud-scores-group {
-      gap: 3px;
+      gap: 4px;
     }
 
     .hud-label {
@@ -2542,8 +2601,8 @@ kbd {
     }
 
     .hud-collectibles-group {
-      padding: 2px 3px;
-      gap: 2px;
+      padding: 2px 4px;
+      gap: 4px;
     }
 
     .hud-orb-dot {
@@ -2552,6 +2611,14 @@ kbd {
     }
 
     .hud-star-glyph {
+      font-size: 0.7rem;
+    }
+
+    .hud-key-glyph {
+      font-size: 0.7rem;
+    }
+
+    .hud-blues-gem {
       font-size: 0.7rem;
     }
 
@@ -2865,5 +2932,870 @@ kbd {
   .touch-controls,
   .floating-controls {
     display: none !important;
+  }
+}
+
+/* ==========================================================================
+   Lives, Blues Currency, Key Vault & Continue System Styles
+   ========================================================================== */
+
+/* Lives Pips in HUD (Visually Centered in Row 1) */
+.hud-lives-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  gap: 3px;
+  background: rgba(4, 8, 24, 0.65);
+  padding: 3px 8px;
+  border-radius: var(--border-radius-pill);
+  border: 1px solid rgba(255, 42, 109, 0.35);
+  box-shadow: 0 0 10px rgba(255, 42, 109, 0.15);
+  flex-shrink: 0;
+}
+
+.life-pip {
+  font-size: 0.95rem;
+  color: #ff2a6d;
+  text-shadow: 0 0 8px rgba(255, 42, 109, 0.85);
+  transition: all 0.25s ease-out;
+  line-height: 1;
+}
+
+.life-pip.active {
+  color: #ff2a6d;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.life-pip.lost {
+  color: rgba(255, 255, 255, 0.2);
+  text-shadow: none;
+  opacity: 0.35;
+  transform: scale(0.85);
+}
+
+.hud-blues-item {
+  border-left: none;
+  padding-left: 0;
+  margin-left: 0;
+}
+
+.hud-blues-gem {
+  font-size: 0.85rem;
+  color: #00f0ff;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.9);
+  line-height: 1;
+}
+
+/* ==========================================================================
+   5-Second Respawn Preparation Countdown Overlay
+   ========================================================================== */
+.respawn-countdown-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 8, 24, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 28;
+  pointer-events: none;
+}
+
+.countdown-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(8, 14, 36, 0.92);
+  border: 2px solid rgba(0, 240, 255, 0.55);
+  border-radius: 24px;
+  padding: 24px 36px;
+  box-shadow:
+    0 0 35px rgba(0, 240, 255, 0.35),
+    inset 0 0 20px rgba(0, 240, 255, 0.12);
+  animation: countdownCardAppear 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-align: center;
+}
+
+@keyframes countdownCardAppear {
+  from { opacity: 0; transform: scale(0.88); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.countdown-title {
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+}
+
+.countdown-number {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  font-weight: 900;
+  line-height: 1;
+  color: #ffffff;
+  text-shadow:
+    0 0 15px #00f0ff,
+    0 0 30px rgba(0, 240, 255, 0.75),
+    0 0 50px rgba(0, 240, 255, 0.45);
+}
+
+.countdown-number.pulse-tick {
+  animation: countdownPulse 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+}
+
+@keyframes countdownPulse {
+  0% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.countdown-subtext {
+  font-family: var(--font-display);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #ff2a6d;
+  text-shadow: 0 0 8px rgba(255, 42, 109, 0.6);
+}
+
+/* ==========================================================================
+   Home Screen Permanent Currency Bar
+   ========================================================================== */
+.home-currency-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 4px;
+  margin-bottom: auto;
+  z-index: 5;
+  pointer-events: auto;
+}
+
+.currency-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(8, 14, 36, 0.88);
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: var(--border-radius-pill);
+  padding: 6px 14px;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.15);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.88rem;
+  font-weight: 800;
+  cursor: default;
+}
+
+.currency-pill.keys-pill {
+  border-color: rgba(255, 209, 102, 0.45);
+  box-shadow: 0 0 14px rgba(255, 209, 102, 0.18);
+}
+
+.currency-icon {
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.currency-val {
+  color: #ffffff;
+}
+
+.blues-pill .currency-val {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+.keys-pill .currency-val {
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 209, 102, 0.6);
+}
+
+/* Secondary Vault Buttons */
+.vault-neon-btn {
+  border-color: rgba(255, 209, 102, 0.45);
+  color: var(--neon-gold);
+}
+
+.vault-neon-btn:hover {
+  border-color: var(--neon-gold);
+  box-shadow: 0 0 20px rgba(255, 209, 102, 0.45);
+  color: #ffffff;
+}
+
+.results-vault-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 18px;
+  min-height: 46px;
+  border-radius: 12px;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--neon-gold);
+  background: rgba(8, 14, 36, 0.85);
+  border: 1.5px solid rgba(255, 209, 102, 0.35);
+  box-shadow: 0 0 14px rgba(255, 209, 102, 0.15);
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  text-decoration: none;
+}
+
+.results-vault-btn:hover,
+.results-vault-btn:focus-visible {
+  border-color: var(--neon-gold);
+  box-shadow: 0 0 22px rgba(255, 209, 102, 0.4);
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.blues-earned-val {
+  color: var(--neon-cyan) !important;
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.7) !important;
+}
+
+/* ==========================================================================
+   Dedicated Continue Modal Screen (Out of Lives)
+   ========================================================================== */
+.continue-screen {
+  z-index: 35;
+  background: rgba(4, 7, 20, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+}
+
+.continue-modal-layout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  padding: 28px 24px 24px;
+  background: linear-gradient(180deg, rgba(14, 22, 54, 0.94) 0%, rgba(7, 12, 32, 0.98) 100%);
+  border: 2px solid rgba(255, 209, 102, 0.5);
+  border-radius: 28px;
+  box-shadow:
+    0 0 40px rgba(255, 209, 102, 0.25),
+    0 20px 50px rgba(0, 0, 0, 0.7),
+    inset 0 0 25px rgba(255, 209, 102, 0.1);
+  text-align: center;
+  animation: continueModalEntrance 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+}
+
+@keyframes continueModalEntrance {
+  0% { opacity: 0; transform: scale(0.85) translateY(20px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.continue-ambient-glow {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 120px;
+  background: radial-gradient(ellipse at center, rgba(255, 209, 102, 0.3) 0%, rgba(255, 209, 102, 0) 70%);
+  pointer-events: none;
+}
+
+.continue-header-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.continue-icon-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 209, 102, 0.25) 0%, rgba(8, 14, 36, 0.8) 100%);
+  border: 2px solid var(--neon-gold);
+  box-shadow: 0 0 20px rgba(255, 209, 102, 0.45);
+  margin-bottom: 4px;
+}
+
+.continue-key-glyph {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.continue-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--neon-gold);
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.75);
+  margin: 0;
+}
+
+.continue-modal-sub {
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  letter-spacing: 1.5px;
+  color: #ff2a6d;
+  text-shadow: 0 0 8px rgba(255, 42, 109, 0.6);
+  margin: 0;
+}
+
+.continue-status-card {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: rgba(4, 8, 22, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+}
+
+.continue-metric-row,
+.continue-keys-row,
+.continue-blues-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.continue-metric-label,
+.continue-keys-label,
+.continue-blues-label {
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+
+.continue-metric-value {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
+}
+
+.continue-divider {
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+}
+
+.continue-keys-left,
+.continue-blues-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.continue-keys-count {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--neon-gold);
+  text-shadow: 0 0 10px rgba(255, 209, 102, 0.7);
+}
+
+.continue-blues-count {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.7);
+}
+
+.continue-actions-zone {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.continue-btn-primary {
+  position: relative;
+  width: 100%;
+  height: 52px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ffd166 0%, #ff9f1c 100%);
+  border: none;
+  color: #030614;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 900;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 0 0 24px rgba(255, 209, 102, 0.5);
+  transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+  overflow: hidden;
+}
+
+.continue-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 0 32px rgba(255, 209, 102, 0.75);
+}
+
+.continue-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.continue-btn-primary.disabled,
+.continue-btn-primary:disabled {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.3);
+  box-shadow: none;
+  cursor: not-allowed;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.continue-btn-content {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  z-index: 2;
+}
+
+.continue-btn-shop {
+  width: 100%;
+  height: 46px;
+  border-radius: 14px;
+  background: rgba(0, 240, 255, 0.1);
+  border: 1.5px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-family: var(--font-display);
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  cursor: pointer;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.2);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.continue-btn-shop:hover {
+  background: rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 24px rgba(0, 240, 255, 0.4);
+  transform: translateY(-1px);
+}
+
+.continue-btn-shop:active {
+  transform: translateY(1px);
+}
+
+.shop-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.continue-btn-skip {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 8px;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.continue-btn-skip:hover {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   Dedicated Key Shop / Vault Modal Screen
+   ========================================================================== */
+.key-shop-screen {
+  z-index: 38;
+  background: rgba(4, 7, 20, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px;
+}
+
+.shop-modal-layout {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 20px 22px;
+  background: linear-gradient(180deg, rgba(14, 22, 54, 0.96) 0%, rgba(6, 10, 28, 0.98) 100%);
+  border: 2px solid rgba(0, 240, 255, 0.5);
+  border-radius: 28px;
+  box-shadow:
+    0 0 45px rgba(0, 240, 255, 0.25),
+    0 20px 50px rgba(0, 0, 0, 0.75),
+    inset 0 0 30px rgba(0, 240, 255, 0.1);
+  animation: continueModalEntrance 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.25);
+}
+
+.shop-ambient-glow {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  height: 120px;
+  background: radial-gradient(ellipse at center, rgba(0, 240, 255, 0.3) 0%, rgba(0, 240, 255, 0) 70%);
+  pointer-events: none;
+}
+
+.shop-header-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.shop-modal-title {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 16px rgba(0, 240, 255, 0.75);
+  margin: 0;
+}
+
+.shop-modal-sub {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+}
+
+.shop-balance-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(4, 8, 22, 0.75);
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.balance-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.balance-label {
+  color: var(--text-muted);
+}
+
+.balance-num {
+  font-size: 0.95rem;
+}
+
+.blues-pill .balance-num {
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px rgba(0, 240, 255, 0.6);
+}
+
+.keys-pill .balance-num {
+  color: var(--neon-gold);
+  text-shadow: 0 0 8px rgba(255, 209, 102, 0.6);
+}
+
+.shop-bundles-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 14px;
+}
+
+.bundle-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: rgba(6, 12, 32, 0.8);
+  border: 1.5px solid rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
+  transition: all 0.22s ease;
+}
+
+.bundle-card.featured {
+  border-color: rgba(0, 240, 255, 0.45);
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.bundle-card.best-value {
+  border-color: rgba(255, 209, 102, 0.55);
+  background: rgba(255, 209, 102, 0.06);
+}
+
+.bundle-badge {
+  position: absolute;
+  top: -8px;
+  right: 14px;
+  font-family: var(--font-display);
+  font-size: 0.58rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: var(--neon-cyan);
+  color: #030614;
+}
+
+.bundle-badge.gold {
+  background: var(--neon-gold);
+  color: #030614;
+}
+
+.bundle-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  font-size: 1.4rem;
+}
+
+.bundle-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  flex: 1;
+  margin-left: 8px;
+}
+
+.bundle-qty {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  color: #ffffff;
+}
+
+.bundle-desc {
+  font-family: var(--font-body);
+  font-size: 0.72rem;
+  color: var(--neon-gold);
+}
+
+.bundle-buy-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  min-width: 88px;
+  border-radius: 12px;
+  background: rgba(0, 240, 255, 0.15);
+  border: 1.5px solid var(--neon-cyan);
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.bundle-card.best-value .bundle-buy-btn {
+  background: rgba(255, 209, 102, 0.2);
+  border-color: var(--neon-gold);
+}
+
+.bundle-buy-btn:hover:not(:disabled) {
+  background: var(--neon-cyan);
+  color: #030614;
+  box-shadow: 0 0 18px rgba(0, 240, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.bundle-card.best-value .bundle-buy-btn:hover:not(:disabled) {
+  background: var(--neon-gold);
+  color: #030614;
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.5);
+}
+
+.bundle-buy-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.bundle-buy-btn.insufficient,
+.bundle-buy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.buy-btn-price {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.buy-btn-currency {
+  font-family: var(--font-display);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--neon-cyan);
+}
+
+.bundle-card.best-value .buy-btn-currency {
+  color: var(--neon-gold);
+}
+
+.shop-feedback-msg {
+  width: 100%;
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-align: center;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+}
+
+.shop-feedback-msg.success {
+  background: rgba(0, 240, 255, 0.15);
+  color: var(--neon-cyan);
+  border: 1px solid rgba(0, 240, 255, 0.4);
+}
+
+.shop-feedback-msg.error {
+  background: rgba(255, 42, 109, 0.15);
+  color: #ff2a6d;
+  border: 1px solid rgba(255, 42, 109, 0.4);
+}
+
+.shop-footer-zone {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.shop-close-btn {
+  padding: 9px 28px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shop-close-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: #ffffff;
+  transform: translateY(-1px);
+}
+
+/* Narrow Screen Adaptations for Lives HUD, Continue & Shop Modals */
+@media (max-width: 380px) {
+  .hud-lives-group {
+    padding: 3px 5px;
+    gap: 2px;
+  }
+  .life-pip {
+    font-size: 0.82rem;
+  }
+  .hud-blues-gem {
+    font-size: 0.75rem;
+  }
+  .countdown-card {
+    padding: 18px 24px;
+  }
+  .countdown-number {
+    font-size: 3.6rem;
+  }
+  .continue-modal-layout,
+  .shop-modal-layout {
+    padding: 20px 14px 16px;
+  }
+  .continue-modal-title,
+  .shop-modal-title {
+    font-size: 1.45rem;
+  }
+  .continue-status-card {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+  .continue-metric-value,
+  .continue-keys-count,
+  .continue-blues-count {
+    font-size: 1.15rem;
+  }
+  .bundle-card {
+    padding: 8px 10px;
+  }
+  .bundle-icon-wrap {
+    width: 32px;
+    font-size: 1.15rem;
+  }
+  .bundle-qty {
+    font-size: 0.85rem;
+  }
+  .bundle-buy-btn {
+    padding: 5px 10px;
+    min-width: 76px;
+  }
+}
+
+@media (max-width: 330px) {
+  .hud-lives-group {
+    padding: 2px 4px;
+    gap: 1px;
+  }
+  .life-pip {
+    font-size: 0.75rem;
+  }
+  .hud-collectibles-group {
+    padding: 3px 5px;
+    gap: 4px;
+  }
+  .hud-blues-gem {
+    font-size: 0.7rem;
+  }
+  .countdown-number {
+    font-size: 3rem;
   }
 }
