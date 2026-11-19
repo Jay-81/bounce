@@ -20,8 +20,8 @@ BOUNCE is a mobile arcade game where players bounce between platforms, avoid haz
 
 ## Screenshots
 
-| Home Screen | Gameplay | Results |
-| :---: | :---: | :---: |
+|                          Home Screen                           |                            Gameplay                             |                            Results                            |
+| :------------------------------------------------------------: | :-------------------------------------------------------------: | :-----------------------------------------------------------: |
 | <img src="screenshots/home.png" alt="Home Screen" width="260"> | <img src="screenshots/gameplay.png" alt="Gameplay" width="260"> | <img src="screenshots/results.png" alt="Results" width="260"> |
 
 ---
@@ -41,12 +41,12 @@ BOUNCE is a mobile arcade game where players bounce between platforms, avoid haz
 
 ## Mobile Controls
 
-| Control | Action |
-| :--- | :--- |
-| **LEFT** | Move left. |
-| **DIVE** | Accelerate downward. |
-| **JUMP** | Perform an air jump. |
-| **RIGHT** | Move right. |
+| Control   | Action               |
+| :-------- | :------------------- |
+| **LEFT**  | Move left.           |
+| **DIVE**  | Accelerate downward. |
+| **JUMP**  | Perform an air jump. |
+| **RIGHT** | Move right.          |
 
 ---
 
@@ -63,7 +63,7 @@ BOUNCE is a mobile arcade game where players bounce between platforms, avoid haz
 
 ## Developer
 
-Jay-81
+Jayani K
 
 ---
 
