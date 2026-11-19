@@ -19,6 +19,18 @@ android/.idea/workspace.xml
 android/.idea/deploymentTargetSelector.xml
 android/.idea/caches/
 
+# Keystores and sensitive signing credentials
+*.jks
+*.keystore
+*.p12
+*.pem
+
+# Android build and release outputs
+android/app/release/
+release-build/
+*.apk
+*.aab
+
 # OS and temporary files
 .DS_Store
 Thumbs.db
@@ -28,4 +40,7 @@ desktop.ini
 *~
 
 # Temporary visual verification screenshots and outputs
-screenshots/
+screenshots/*
+!screenshots/home.png
+!screenshots/gameplay.png
+!screenshots/results.png
